@@ -25,22 +25,23 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { gsap } from "gsap";
 import { useCustomCursor } from "../composables/useCustomCursor";
+import { usePointerEffects } from "../composables/usePointerEffects";
+import { useReducedMotion } from "../composables/useReducedMotion";
 
 const { cursorState } = useCustomCursor();
+const { supportsFinePointer } = usePointerEffects();
+const { prefersReducedMotion } = useReducedMotion();
 
 const cursorEl = ref(null);
 const labelEl = ref(null);
-const supportsFinePointer = ref(false);
 const trailDotRefs = ref([]);
 const trailCount = 8;
 const trailOpacities = [0.6, 0.5, 0.4, 0.3, 0.22, 0.15, 0.1, 0.05];
 const trailScales = [1, 0.9, 0.8, 0.7, 0.58, 0.48, 0.38, 0.3];
 const trailLerpFactors = [0.35, 0.32, 0.29, 0.26, 0.23, 0.2, 0.18, 0.15];
 
-let removePointerQueryListener = null;
 let removeMoveListener = null;
 let removeResizeListener = null;
-let removeMotionQueryListener = null;
 let xTo = null;
 let yTo = null;
 let shapeTween = null;
@@ -52,7 +53,6 @@ let trailNodes = [];
 let trailState = [];
 let trailVisibility = 1;
 let trailTargetVisibility = 1;
-let reducedMotion = false;
 
 const isActive = computed(
   () => supportsFinePointer.value && cursorState.isEnabled,
@@ -127,7 +127,7 @@ function setTrailDotRef(node, index) {
 }
 
 function startTrailLoop() {
-  if (trailRaf || reducedMotion || !isActive.value) return;
+  if (trailRaf || prefersReducedMotion.value || !isActive.value) return;
   trailNodes = trailDotRefs.value.filter(Boolean);
   if (!trailNodes.length) return;
   if (!trailState.length) {
@@ -273,50 +273,28 @@ watch(
 );
 
 onMounted(() => {
-  const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
-  supportsFinePointer.value = mq.matches;
-  const onQueryChange = (event) => {
-    supportsFinePointer.value = event.matches;
-  };
-  if (typeof mq.addEventListener === "function") {
-    mq.addEventListener("change", onQueryChange);
-    removePointerQueryListener = () => mq.removeEventListener("change", onQueryChange);
-  } else {
-    mq.addListener(onQueryChange);
-    removePointerQueryListener = () => mq.removeListener(onQueryChange);
-  }
-
   const onResize = () => {
     currentPointerX = window.innerWidth / 2;
     currentPointerY = window.innerHeight / 2;
   };
   window.addEventListener("resize", onResize, { passive: true });
   removeResizeListener = () => window.removeEventListener("resize", onResize);
+});
 
-  const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
-  reducedMotion = motionMq.matches;
-  const onMotionChange = (event) => {
-    reducedMotion = event.matches;
-    if (reducedMotion) {
+watch(
+  prefersReducedMotion,
+  (reduced) => {
+    if (reduced) {
       stopTrailLoop();
     } else if (isActive.value) {
       startTrailLoop();
     }
-  };
-  if (typeof motionMq.addEventListener === "function") {
-    motionMq.addEventListener("change", onMotionChange);
-    removeMotionQueryListener = () =>
-      motionMq.removeEventListener("change", onMotionChange);
-  } else {
-    motionMq.addListener(onMotionChange);
-    removeMotionQueryListener = () => motionMq.removeListener(onMotionChange);
-  }
-});
+  },
+  { immediate: true },
+);
 
 onUnmounted(() => {
-  removePointerQueryListener?.();
   removeResizeListener?.();
-  removeMotionQueryListener?.();
   unmountTracking();
 });
 </script>

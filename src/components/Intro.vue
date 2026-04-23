@@ -185,6 +185,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { usePointerEffects } from "../composables/usePointerEffects";
 
 const el = ref(null),
   lblEl = ref(null),
@@ -203,6 +204,7 @@ const sectionDecoEl = ref(null);
 const lineCharQuickTos = [];
 const supportsHover = ref(false);
 const headlineReady = ref(false);
+const { supportsPointerEffects } = usePointerEffects();
 let removeHoverQueryListener = null;
 
 const lines = ["Creative Developer", "& Designer —", "building the future."];
@@ -258,6 +260,7 @@ function isSerifAccentChar(lineIndex, charIndex) {
 }
 
 function onStatMove(e) {
+  if (!supportsPointerEffects.value) return;
   const el = e.currentTarget;
   if (!el) return;
   const rect = el.getBoundingClientRect();
@@ -272,6 +275,7 @@ function onStatMove(e) {
 }
 
 function onStatLeave(e) {
+  if (!supportsPointerEffects.value) return;
   const el = e.currentTarget;
   if (!el) return;
   el.style.setProperty("--mx", "50");
@@ -298,7 +302,7 @@ function setupHeadlineElastic() {
 }
 
 function onHeadlineMove(event) {
-  if (!supportsHover.value || !headlineReady.value) return;
+  if (!supportsPointerEffects.value || !supportsHover.value || !headlineReady.value) return;
   const influenceRadius = 150;
   const maxShift = 12;
   const maxScaleBoost = 0.08;
@@ -332,6 +336,7 @@ function onHeadlineMove(event) {
 }
 
 function onHeadlineLeave() {
+  if (!supportsPointerEffects.value) return;
   lineCharQuickTos.forEach((row) => {
     row?.forEach((driver) => {
       driver?.yTo(0);

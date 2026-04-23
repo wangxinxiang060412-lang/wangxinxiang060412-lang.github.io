@@ -1,10 +1,8 @@
 import { createRouter, createWebHistory } from "vue-router";
-import HomeView from "../views/HomeView.vue";
-import PixelBuddyDetail from "../views/PixelBuddyDetail.vue";
 
 const routes = [
-  { path: "/", component: HomeView },
-  { path: "/work", component: HomeView },
+  { path: "/", component: () => import("../views/HomeView.vue") },
+  { path: "/work", component: () => import("../views/HomeView.vue") },
   {
     path: "/work/lighttrip-curator",
     component: () => import("../views/LightTripDetail.vue"),
@@ -13,7 +11,7 @@ const routes = [
   {
     path: "/pixel-buddy",
     name: "pixel-buddy",
-    component: PixelBuddyDetail,
+    component: () => import("../views/PixelBuddyDetail.vue"),
   },
 ];
 

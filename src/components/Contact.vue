@@ -258,6 +258,7 @@
 import { reactive, ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { usePointerEffects } from "../composables/usePointerEffects";
 import { useMagnetic } from "../composables/useMagnetic";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -282,6 +283,7 @@ const waxBursting = ref(false);
 const signatureStarted = ref(false);
 const prefersReducedMotion = ref(false);
 const isSectionHover = ref(false);
+const { supportsPointerEffects } = usePointerEffects();
 const formData = reactive({
   name: "",
   email: "",
@@ -296,6 +298,7 @@ let myTo = null;
 let firstMove = true;
 
 function onSectionMove(e) {
+  if (!supportsPointerEffects.value) return;
   if (!sectionEl.value || !mxTo || !myTo) return;
   const rect = sectionEl.value.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -313,6 +316,10 @@ function onSectionMove(e) {
 }
 
 function setSectionHover(active) {
+  if (!supportsPointerEffects.value) {
+    isSectionHover.value = false;
+    return;
+  }
   isSectionHover.value = active;
 }
 

@@ -25,9 +25,10 @@
         ref="storyTextEl"
         aria-live="polite"
         aria-atomic="true"
-        class="mt-20 h-[14px] font-mono text-[9px] tracking-[0.28em] text-[#5C4D49]/70"
+        class="mt-20 inline-grid h-[14px] w-[14ch] place-items-center font-mono text-[9px] leading-[14px] tracking-[0.28em] text-[#5C4D49]/70"
       >
-        {{ storyText }}
+        <span class="col-start-1 row-start-1 invisible" aria-hidden="true">找到画笔了...</span>
+        <span class="col-start-1 row-start-1">{{ storyText || "\u00A0" }}</span>
       </p>
     </div>
   </div>
@@ -44,6 +45,7 @@ const trailEl = ref(null);
 const storyText = ref("");
 let tl = null;
 let storyTimer = 0;
+let storyFrameIndex = 0;
 
 const storyFrames = [
   "找到画笔了...",
@@ -59,13 +61,11 @@ onMounted(() => {
   const travelWidth = Math.max(0, host.clientWidth - petEl.value.offsetWidth);
   const progressState = { x: 0 };
 
-  storyText.value = storyFrames[0];
+  storyFrameIndex = 0;
+  storyText.value = storyFrames[storyFrameIndex];
   storyTimer = window.setInterval(() => {
-    const nextIndex = Math.min(
-      storyFrames.length - 1,
-      storyFrames.findIndex((text) => text === storyText.value) + 1,
-    );
-    storyText.value = storyFrames[nextIndex] ?? "";
+    storyFrameIndex = Math.min(storyFrames.length - 1, storyFrameIndex + 1);
+    storyText.value = storyFrames[storyFrameIndex] ?? "";
   }, 800);
 
   const syncTrail = () => {
@@ -126,6 +126,7 @@ onUnmounted(() => {
     window.clearInterval(storyTimer);
     storyTimer = 0;
   }
+  storyFrameIndex = 0;
   tl?.kill();
 });
 </script>

@@ -15,6 +15,11 @@
           :src="currentFrame"
           :alt="`Pixel cat in ${currentState} state`"
           class="h-[112px] w-[112px] select-none object-contain"
+          width="112"
+          height="112"
+          loading="lazy"
+          decoding="async"
+          fetchpriority="low"
           draggable="false"
         />
       </button>

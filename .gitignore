@@ -9,3 +9,5 @@ dist/
 .vscode/
 .cursor/
 .cursorrules
+.playwright-cli/
+output/

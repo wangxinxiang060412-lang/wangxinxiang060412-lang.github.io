@@ -47,7 +47,7 @@
     >
       <p
         ref="introRowEl"
-        class="hero-ui text-sm font-light tracking-[0.3em] uppercase text-[#4A3B32]"
+        class="hero-ui min-h-[14px] text-sm font-light leading-[14px] tracking-[0.3em] uppercase text-[#4A3B32]"
       >
         {{ heroGreeting }}
       </p>
@@ -126,7 +126,7 @@
 
       <p
         ref="roleRowEl"
-        class="hero-ui mt-4 text-base md:text-lg font-semibold tracking-wider uppercase text-[#4A3B32]/85"
+        class="hero-ui mt-4 min-h-[18px] text-base md:text-lg font-semibold leading-[18px] md:min-h-[20px] md:leading-[20px] tracking-wider uppercase text-[#4A3B32]/85"
       >
         CREATIVE DEVELOPER // ART ENGINEER
       </p>
@@ -210,6 +210,7 @@
 
 <script setup>
 import {
+  computed,
   ref,
   watch,
   onMounted,
@@ -219,7 +220,10 @@ import {
 } from "vue";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { cancelIdleTask, scheduleIdleTask } from "../composables/useIdleTask";
+import { useIsLowEndDevice } from "../composables/useIsLowEndDevice";
 import { useMagnetic } from "../composables/useMagnetic";
+import { useReducedMotion } from "../composables/useReducedMotion";
 import { useScrollLock } from "../composables/useScrollLock";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -229,6 +233,11 @@ const props = defineProps({
   startIntro: { type: Boolean, default: true },
   skipIntro: { type: Boolean, default: false },
 });
+const { prefersReducedMotion } = useReducedMotion();
+const { isLowEndDevice } = useIsLowEndDevice();
+const shouldReduceHeroMotion = computed(
+  () => prefersReducedMotion.value || isLowEndDevice.value,
+);
 
 const heroEl = ref(null);
 const loaderWrapper = ref(null);
@@ -379,12 +388,15 @@ useMagnetic(scrollCtaEl, {
 let ctx;
 let runIntro = null;
 let introStarted = false;
+let postIntroEnhancementsReady = false;
+let postIntroIdleTask = null;
+let bootPostIntroSystems = null;
 let noiseAnimFrame = 0;
 let floaters = [];
 let canvasCtx = null;
 let canvasWidth = 0;
 let canvasHeight = 0;
-let motionAllowed = true;
+let motionAllowed = !shouldReduceHeroMotion.value;
 let motionMedia = null;
 let canvasVisibilityHandler = null;
 let targetParallaxX = 0;
@@ -409,6 +421,7 @@ let inkActive = false;
 let inkCanGrow = false;
 let tearAudioCtx = null;
 let detachInkListeners = null;
+let inkViewportTrigger = null;
 let forceHeroReplay = false;
 
 const INK_COLOR = "rgba(255,176,133,0.055)";
@@ -541,7 +554,7 @@ function setupFloatCanvas() {
   if (!canvasCtx) return;
 
   motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
-  motionAllowed = !motionMedia.matches;
+  motionAllowed = !shouldReduceHeroMotion.value;
 
   const onPointerMove = (event) => {
     const rect = section.getBoundingClientRect();
@@ -557,7 +570,7 @@ function setupFloatCanvas() {
   };
 
   const onMediaChange = (event) => {
-    motionAllowed = !event.matches;
+    motionAllowed = !event.matches && !isLowEndDevice.value;
     if (motionAllowed) {
       resizeCanvas();
       if (!noiseAnimFrame) tickFloaters();
@@ -632,6 +645,19 @@ function setupScrollHintDismiss() {
     window.removeEventListener("scroll", onScroll);
     detachScrollHintListener = null;
   };
+}
+
+function startArrowBreath() {
+  if (!scrollArrowEl.value || !motionAllowed || arrowBreathTween) return;
+  gsap.set(scrollArrowEl.value, { y: 0, opacity: 0.7 });
+  arrowBreathTween = gsap.to(scrollArrowEl.value, {
+    y: 8,
+    opacity: 0.3,
+    duration: 2,
+    ease: "sine.inOut",
+    repeat: -1,
+    yoyo: true,
+  });
 }
 
 function createInkBlob() {
@@ -806,7 +832,13 @@ function setupInkCanvas() {
   }
 
   gsap.set(canvas, { opacity: 0 });
-  ScrollTrigger.create({
+}
+
+function activateInkViewportLifecycle() {
+  const section = heroEl.value;
+  if (!section || !motionAllowed || inkViewportTrigger) return;
+
+  inkViewportTrigger = ScrollTrigger.create({
     trigger: section,
     start: "top bottom",
     end: "bottom top",
@@ -820,6 +852,7 @@ function setupInkCanvas() {
     },
   });
 
+  let inkResizeTimer = 0;
   const onInkResize = () => {
     clearTimeout(inkResizeTimer);
     inkResizeTimer = window.setTimeout(() => {
@@ -827,12 +860,13 @@ function setupInkCanvas() {
       renderInkFrame();
     }, 80);
   };
-  let inkResizeTimer = 0;
   window.addEventListener("resize", onInkResize, { passive: true });
   detachInkListeners = () => {
     window.removeEventListener("resize", onInkResize);
     clearTimeout(inkResizeTimer);
     inkResizeTimer = 0;
+    inkViewportTrigger?.kill();
+    inkViewportTrigger = null;
     detachInkListeners = null;
   };
 }
@@ -932,17 +966,21 @@ function setupNameFluidMotion(reduced) {
   evolveSeed();
 }
 
-onMounted(async () => {
-  await nextTick();
-  forceHeroReplay = window.location.search.includes("debugHero=1");
+function initPostIntroSystems() {
+  if (postIntroEnhancementsReady) return;
+  postIntroEnhancementsReady = true;
+
   setupFloatCanvas();
-  setupInkCanvas();
   setupScrollHintDismiss();
+  activateInkViewportLifecycle();
+  startArrowBreath();
+
   const nameMotionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
-  setupNameFluidMotion(nameMotionMedia.matches);
+  setupNameFluidMotion(nameMotionMedia.matches || isLowEndDevice.value);
   const onNameMotionChange = (event) => {
-    setupNameFluidMotion(event.matches);
-    if (event.matches) onNameLensLeave();
+    const reduced = event.matches || isLowEndDevice.value;
+    setupNameFluidMotion(reduced);
+    if (reduced) onNameLensLeave();
   };
   if (typeof nameMotionMedia.addEventListener === "function") {
     nameMotionMedia.addEventListener("change", onNameMotionChange);
@@ -953,12 +991,30 @@ onMounted(async () => {
     detachNameMotionListener = () =>
       nameMotionMedia.removeListener(onNameMotionChange);
   }
+
   const onHello = () => {
     playHelloLensSweep();
   };
   window.addEventListener("easter:hero-hello", onHello);
   detachHelloListener = () =>
     window.removeEventListener("easter:hero-hello", onHello);
+}
+
+function schedulePostIntroSystems() {
+  if (postIntroEnhancementsReady) return;
+  cancelIdleTask(postIntroIdleTask);
+  postIntroIdleTask = scheduleIdleTask(() => {
+    postIntroIdleTask = null;
+    window.requestAnimationFrame(() => {
+      bootPostIntroSystems?.();
+    });
+  }, 900);
+}
+
+onMounted(async () => {
+  await nextTick();
+  forceHeroReplay = window.location.search.includes("debugHero=1");
+  setupInkCanvas();
   ctx = gsap.context(() => {
     const layer1 = paperLayer1.value;
     const layer2 = paperLayer2.value;
@@ -966,18 +1022,6 @@ onMounted(async () => {
     const wrap = loaderWrapper.value;
     const heroWrap = heroContentWrapper.value;
     if (!layer1 || !layer2 || !layer3 || !wrap || !heroWrap) return;
-
-    if (scrollArrowEl.value && motionAllowed) {
-      gsap.set(scrollArrowEl.value, { y: 0, opacity: 0.7 });
-      arrowBreathTween = gsap.to(scrollArrowEl.value, {
-        y: 8,
-        opacity: 0.3,
-        duration: 2,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
-      });
-    }
 
     const setupScrollFade = () => {
       const fadeTargets = stampEl.value ? [heroWrap, stampEl.value] : [heroWrap];
@@ -1032,6 +1076,7 @@ onMounted(async () => {
         onComplete: () => {
           gsap.set(wrap, { visibility: "hidden", pointerEvents: "none" });
           setupScrollFade();
+          schedulePostIntroSystems();
           emit("intro-complete");
         },
       });
@@ -1199,12 +1244,14 @@ onMounted(async () => {
       });
       gsap.set(wrap, { visibility: "hidden", pointerEvents: "none" });
       setupScrollFade();
+      schedulePostIntroSystems();
       emit("intro-complete");
       return;
     }
 
     if (props.startIntro || forceHeroReplay) runIntro();
   }, heroEl.value);
+  bootPostIntroSystems = initPostIntroSystems;
 });
 
 watch(
@@ -1221,6 +1268,8 @@ onUnmounted(() => {
     lensMoveRafId = 0;
   }
   forceUnlock();
+  cancelIdleTask(postIntroIdleTask);
+  postIntroIdleTask = null;
   stopFloaters();
   stopInkLoop();
   inkActive = false;

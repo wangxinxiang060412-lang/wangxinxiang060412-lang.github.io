@@ -1,27 +1,41 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { visualizer } from "rollup-plugin-visualizer";
+
+const shouldAnalyze = process.env.ANALYZE === "true";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    shouldAnalyze &&
+      visualizer({
+        filename: "dist/bundle-report.html",
+        gzipSize: true,
+        brotliSize: true,
+        open: false,
+      }),
+  ].filter(Boolean),
   base: "/",
   build: {
-    assetsInlineLimit: 100000,
-    chunkSizeWarningLimit: 1500, // 提高警告阈值，因为 3D 库本身就大
+    assetsInlineLimit: 4096,
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {
-        // 手动代码分割：把沉重的第三方库单独打包，利用浏览器缓存
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("three")) {
-              return "vendor-three"; // 独立打包 Three.js
+              return "vendor-three";
             }
             if (id.includes("gsap")) {
-              return "vendor-gsap"; // 独立打包 GSAP
+              return "vendor-gsap";
+            }
+            if (id.includes("lenis")) {
+              return "vendor-lenis";
             }
             if (id.includes("vue") || id.includes("vue-router")) {
-              return "vendor-vue"; // 独立打包 Vue 全家桶
+              return "vendor-vue";
             }
-            return "vendor-base"; // 其他依赖
           }
         },
       },

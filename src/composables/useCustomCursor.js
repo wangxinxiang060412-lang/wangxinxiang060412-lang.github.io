@@ -9,6 +9,12 @@ const cursorState = reactive({
 
 function setCursorEnabled(value) {
   cursorState.isEnabled = Boolean(value);
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.toggle(
+      "has-custom-cursor",
+      cursorState.isEnabled,
+    );
+  }
 }
 
 function setCursorMode(mode = "default", label = "") {

@@ -71,6 +71,11 @@
               :src="card.src"
               :alt="card.alt"
               class="h-full w-full rounded-[inherit] object-contain"
+              width="880"
+              height="1912"
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
               draggable="false"
             />
           </div>
@@ -89,6 +94,8 @@
 import { ref, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { usePointerEffects } from "../composables/usePointerEffects";
+import { preloadCuratorStudio } from "../composables/useStudioLoader";
 import { isStudioOpen } from "../composables/useStudio";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -100,12 +107,13 @@ const ctaButton = ref(null);
 const warmTransitionEl = ref(null);
 const cardRefs = ref([]);
 const isExploding = ref(false);
+const { supportsPointerEffects } = usePointerEffects();
 const mouse = ref({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
 
 const cards = [
-  { src: "/deck-1.png", alt: "Deck card left" },
-  { src: "/deck-2.png", alt: "Deck card center" },
-  { src: "/deck-3.png", alt: "Deck card right" },
+  { src: "/deck-1.webp", alt: "Deck card left" },
+  { src: "/deck-2.webp", alt: "Deck card center" },
+  { src: "/deck-3.webp", alt: "Deck card right" },
 ];
 const defaultCardTransforms = [
   { x: -90, y: 0, rotation: -8 },
@@ -163,6 +171,7 @@ function triggerPortalTransition() {
   const [c1, c2, c3] = cardRefs.value;
   if (!copy || !warmTransition || !c1 || !c2 || !c3) return;
 
+  void preloadCuratorStudio();
   isExploding.value = true;
   const tl = gsap.timeline({
     defaults: { overwrite: "auto" },
@@ -235,6 +244,7 @@ function handlePortalClick() {
 }
 
 function onSectionMove(e) {
+  if (!supportsPointerEffects.value) return;
   mouse.value = {
     x: e.clientX,
     y: e.clientY,
@@ -247,6 +257,7 @@ let cardBreathTimelines = [];
 let ctaBreathTween = null;
 
 function onCtaMouseMove(e) {
+  if (!supportsPointerEffects.value) return;
   const el = ctaButton.value;
   if (!el || !ctaXTo || !ctaYTo) return;
   const r = el.getBoundingClientRect();

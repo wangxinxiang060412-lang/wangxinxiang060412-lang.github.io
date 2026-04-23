@@ -466,7 +466,7 @@ const cardData = [
     decision:
       "面向 18-30 岁的年轻用户，以「10 分钟完成一次高质量旅行决策」为单一目标，舍弃多日深度行程规划、社区话题流等会扩散注意力的功能。",
     insight: "",
-    texture: "/lighttrip/lt-1.png",
+    texture: "/lighttrip/lt-1.webp",
     actTitle: "STRATEGY 战略",
   },
   {
@@ -477,7 +477,7 @@ const cardData = [
     decision:
       "对比 5 款主流旅行 App 的决策路径后，归纳出共性问题：信息过载、平台分散、表单冗长。轻旅的设计原则因此聚焦「少输入、少跳转、少冗余」。",
     insight: "",
-    texture: "/lighttrip/lt-2.png",
+    texture: "/lighttrip/lt-2.webp",
     actTitle: "STRATEGY 战略",
   },
   {
@@ -488,7 +488,7 @@ const cardData = [
     decision:
       "梳理启动页、登录、首页、搜索、探索、详情、AI 助手、发布、消息、个人中心十大模块的关系与信息流。每个节点都标注「核心 / 支撑 / 可去除」三档优先级。",
     insight: "",
-    texture: "/lighttrip/lt-3.png",
+    texture: "/lighttrip/lt-3.webp",
     actTitle: "BLUEPRINT 规划",
   },
   {
@@ -499,7 +499,7 @@ const cardData = [
     decision:
       "覆盖三个阶段的 12 个关键触点，标记情绪低谷（决策疲劳、信息冲突、临场焦虑）作为产品节奏与功能优先级的依据。",
     insight: "",
-    texture: "/lighttrip/lt-4.png",
+    texture: "/lighttrip/lt-4.webp",
     actTitle: "BLUEPRINT 规划",
   },
   {
@@ -510,7 +510,7 @@ const cardData = [
     decision:
       "采用高可读分层 + 统一色彩 token + 三档信息密度（卡片 / 列表 / 详情）。不同场景调用同一套组件，保证操作效率与品牌一致性。",
     insight: "",
-    texture: "/lighttrip/lt-5.png",
+    texture: "/lighttrip/lt-5.webp",
     actTitle: "BLUEPRINT 规划",
   },
   {
@@ -521,7 +521,7 @@ const cardData = [
     decision:
       "支持验证码、密码两种轻量入口，并允许「先体验再登录」。账号体系保证后续个性化与成长能力，但不在第一秒拦住用户。",
     insight: "",
-    texture: "/lighttrip/lt-6.png",
+    texture: "/lighttrip/lt-6.webp",
     actTitle: "INTERFACE 界面",
   },
   {
@@ -532,7 +532,7 @@ const cardData = [
     decision:
       "首页聚合目的地卡片、个性化推荐与探索入口。清晰分区 + 轻量交互反馈（点击预览、收藏微动画）提升浏览效率与发现质量。",
     insight: "",
-    texture: "/lighttrip/lt-7.png",
+    texture: "/lighttrip/lt-7.webp",
     actTitle: "INTERFACE 界面",
   },
   {
@@ -543,7 +543,7 @@ const cardData = [
     decision:
       "AI 助手以对话 + 卡片混合输出。生成结果同时呈现关键攻略要点与「为什么这么推荐」的解释，兼顾可执行性与可解释性。",
     insight: "",
-    texture: "/lighttrip/lt-8.png",
+    texture: "/lighttrip/lt-8.webp",
     actTitle: "INTERFACE 界面",
   },
   {
@@ -554,7 +554,7 @@ const cardData = [
     decision:
       "围绕收藏、评论、路线信息与时间轴四个动作组织内容。下方常驻的悬浮 CTA 让动作触达率提升，时间轴让用户对行程节奏有空间感。",
     insight: "",
-    texture: "/lighttrip/lt-9.png",
+    texture: "/lighttrip/lt-9.webp",
     actTitle: "INTERFACE 界面",
   },
   {
@@ -565,7 +565,7 @@ const cardData = [
     decision:
       "发布与消息复用同一套组件结构，让创作者和读者的视图保持一致。互动沉淀转化为通知与社区活跃，但不会无理由打扰。",
     insight: "",
-    texture: "/lighttrip/lt-10.png",
+    texture: "/lighttrip/lt-10.webp",
     actTitle: "INTERFACE 界面",
   },
   {
@@ -576,7 +576,7 @@ const cardData = [
     decision:
       "整合收藏、点赞、历史与行程资产到统一视图。用户对自己的内容有完整回看与管理权，也强化了对产品的归属感。",
     insight: "",
-    texture: "/lighttrip/lt-11.png",
+    texture: "/lighttrip/lt-11.webp",
     actTitle: "INTERFACE 界面",
   },
 ];

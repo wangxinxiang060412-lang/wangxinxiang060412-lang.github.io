@@ -1,9 +1,10 @@
 <template>
-  <CustomCursor />
+  <AsyncCustomCursor v-if="shouldRenderCustomCursor" />
 
   <div
     id="global-ambient"
     ref="globalAmbientEl"
+    :class="{ 'ambient-lite': isPerformanceLite }"
     class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none"
     style="background: var(--bg-warm)"
   >
@@ -30,11 +31,13 @@
   </div>
   <div
     ref="paperEdgeLeftEl"
+    :class="{ 'paper-edge-lite': isPerformanceLite }"
     class="paper-edge paper-edge-left pointer-events-none fixed left-0 top-0 z-[12] h-screen w-[20px]"
     aria-hidden="true"
   />
   <div
     ref="paperEdgeRightEl"
+    :class="{ 'paper-edge-lite': isPerformanceLite }"
     class="paper-edge paper-edge-right pointer-events-none fixed right-0 top-0 z-[12] h-screen w-[20px]"
     aria-hidden="true"
   />
@@ -67,6 +70,7 @@
   </button>
 
   <div
+    :class="{ 'noise-lite': isPerformanceLite }"
     class="global-noise-overlay fixed inset-0 z-[1] pointer-events-none"
   />
   <div
@@ -94,23 +98,38 @@
   </main>
 
   <Transition name="studio-fade">
-    <CuratorStudio v-if="isStudioOpen" class="fixed inset-0 z-[9000]" />
+    <CuratorStudioHost v-if="isStudioOpen" />
   </Transition>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, onErrorCaptured } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  onErrorCaptured,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from "vue";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import CustomCursor from "./components/CustomCursor.vue";
-import CuratorStudio from "./components/CuratorStudio.vue";
+import CuratorStudioHost from "./components/CuratorStudioHost.vue";
+import { cancelIdleTask, scheduleIdleTask } from "./composables/useIdleTask";
+import { useIsLowEndDevice } from "./composables/useIsLowEndDevice";
 import { initLenis, destroyLenis, useLenis } from "./composables/useLenis";
 import { useCustomCursor } from "./composables/useCustomCursor";
+import { usePointerEffects } from "./composables/usePointerEffects";
+import { useReducedMotion } from "./composables/useReducedMotion";
 import { isStudioOpen } from "./composables/useStudio";
 import { useScrollLock } from "./composables/useScrollLock";
-import { useEasterEggs } from "./composables/useEasterEggs";
 
 gsap.registerPlugin(ScrollTrigger);
+
+const AsyncCustomCursor = defineAsyncComponent({
+  loader: () => import("./components/CustomCursor.vue"),
+  suspensible: false,
+});
 
 const inkFillEl = ref(null);
 const routeCurtainEl = ref(null);
@@ -123,21 +142,35 @@ const {
   setCursorMagneticTarget,
   clearCursorHover,
 } = useCustomCursor();
+const { prefersReducedMotion } = useReducedMotion();
+const { isLowEndDevice } = useIsLowEndDevice();
+const { supportsPointerEffects } = usePointerEffects();
 const { lock, unlock, forceUnlock } = useScrollLock();
+const isPerformanceLite = computed(
+  () => prefersReducedMotion.value || isLowEndDevice.value,
+);
+const cursorComponentReady = ref(false);
+const shouldRenderCustomCursor = computed(
+  () => cursorComponentReady.value && supportsPointerEffects.value,
+);
 
 let appScrollTrigger = null;
 let pointerMoveHandler = null;
+let pointerMoveRafId = 0;
+let queuedPointerTarget = null;
 let activeCursorTarget = null;
 let removeStudioWatch = null;
 let routeTransitionDepth = 0;
 const rootStyle = document.documentElement.style;
 let blankClickRippleHandler = null;
 let activeRippleCount = 0;
+let lenisIdleTask = null;
+let cursorIdleTask = null;
+let easterEggsIdleTask = null;
 let edgeYToLeft = null;
 let edgeYToRight = null;
 let edgeWideScreenMedia = null;
 let ambientVisibilityHandler = null;
-let lastPointerMove = 0;
 let pendingProgress = null;
 let warmthRafId = 0;
 let disposeEasterEggs = null;
@@ -191,6 +224,15 @@ function scrollToTop() {
 }
 
 function setupBlankClickRipple() {
+  if (
+    blankClickRippleHandler ||
+    !supportsPointerEffects.value ||
+    prefersReducedMotion.value ||
+    isLowEndDevice.value
+  ) {
+    return;
+  }
+
   blankClickRippleHandler = (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -231,6 +273,12 @@ function setupBlankClickRipple() {
   };
 
   document.addEventListener("click", blankClickRippleHandler, { passive: true });
+}
+
+function teardownBlankClickRipple() {
+  if (!blankClickRippleHandler) return;
+  document.removeEventListener("click", blankClickRippleHandler);
+  blankClickRippleHandler = null;
 }
 
 function lockRouteTransitionScroll() {
@@ -283,12 +331,119 @@ function updateCursorFromTarget(target) {
   }
 }
 
+function flushPointerTarget() {
+  pointerMoveRafId = 0;
+  const target = queuedPointerTarget;
+
+  if (!target) {
+    activeCursorTarget = null;
+    clearCursorHover();
+    return;
+  }
+
+  if (target.matches?.("input, textarea, [contenteditable='true']")) {
+    activeCursorTarget = null;
+    setCursorMagneticTarget(null);
+    setCursorMode("text", "");
+    return;
+  }
+
+  if (target.hasAttribute?.("data-cursor")) {
+    updateCursorFromTarget(target);
+    return;
+  }
+
+  updateCursorFromTarget(target);
+}
+
+function attachPointerEnhancements() {
+  if (pointerMoveHandler || !supportsPointerEffects.value) return;
+
+  setupBlankClickRipple();
+
+  pointerMoveHandler = (event) => {
+    queuedPointerTarget = event.target?.closest?.(
+      "[data-cursor], button, a, [role='button'], input, textarea, [contenteditable='true']",
+    ) || null;
+
+    if (pointerMoveRafId) return;
+    pointerMoveRafId = window.requestAnimationFrame(flushPointerTarget);
+  };
+
+  window.addEventListener("pointermove", pointerMoveHandler, { passive: true });
+}
+
+function detachPointerEnhancements() {
+  if (pointerMoveHandler) {
+    window.removeEventListener("pointermove", pointerMoveHandler);
+  }
+  pointerMoveHandler = null;
+  queuedPointerTarget = null;
+
+  if (pointerMoveRafId) {
+    window.cancelAnimationFrame(pointerMoveRafId);
+    pointerMoveRafId = 0;
+  }
+
+  teardownBlankClickRipple();
+}
+
+function scheduleCursorMount() {
+  if (cursorComponentReady.value || !supportsPointerEffects.value) return;
+  cancelIdleTask(cursorIdleTask);
+  cursorIdleTask = scheduleIdleTask(() => {
+    cursorComponentReady.value = true;
+  }, 900);
+}
+
+watch(
+  supportsPointerEffects,
+  (enabled) => {
+    if (enabled) {
+      scheduleCursorMount();
+      attachPointerEnhancements();
+      return;
+    }
+
+    detachPointerEnhancements();
+    clearCursorHover();
+    setCursorMagneticTarget(null);
+    setCursorMode("default", "");
+  },
+  { immediate: true },
+);
+
+watch(
+  shouldRenderCustomCursor,
+  (enabled) => {
+    setCursorEnabled(enabled);
+    if (!enabled) {
+      clearCursorHover();
+      setCursorMagneticTarget(null);
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  isPerformanceLite,
+  (lite) => {
+    document.documentElement.classList.toggle("perf-lite", lite);
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   rootStyle.setProperty("--scroll-progress", "0");
   scheduleGlobalWarmth(0);
-  initLenis();
-  setCursorEnabled(true);
-  setupBlankClickRipple();
+  lenisIdleTask = scheduleIdleTask(() => {
+    initLenis();
+  }, 700);
+
+  if (supportsPointerEffects.value) {
+    scheduleCursorMount();
+  }
+
   removeStudioWatch = watch(
     isStudioOpen,
     (isOpen) => {
@@ -313,7 +468,12 @@ onMounted(() => {
       rootStyle.setProperty("--scroll-progress", self.progress.toFixed(4));
       scrollProgress.value = self.progress;
       scheduleGlobalWarmth(self.progress);
-      if (edgeYToLeft && edgeYToRight && edgeWideScreenMedia?.matches) {
+      if (
+        edgeYToLeft &&
+        edgeYToRight &&
+        edgeWideScreenMedia?.matches &&
+        !isPerformanceLite.value
+      ) {
         const edgeY = self.scroll() * 0.05;
         edgeYToLeft(edgeY);
         edgeYToRight(edgeY);
@@ -324,39 +484,8 @@ onMounted(() => {
     },
   });
 
-  pointerMoveHandler = (event) => {
-    const now = performance.now();
-    if (now - lastPointerMove < 16) return;
-    lastPointerMove = now;
-
-    const target = event.target?.closest?.(
-      "[data-cursor], button, a, [role='button'], input, textarea, [contenteditable='true']",
-    );
-    if (!target) {
-      activeCursorTarget = null;
-      clearCursorHover();
-      return;
-    }
-
-    if (target.matches("input, textarea, [contenteditable='true']")) {
-      activeCursorTarget = null;
-      setCursorMagneticTarget(null);
-      setCursorMode("text", "");
-      return;
-    }
-
-    if (target.hasAttribute("data-cursor")) {
-      updateCursorFromTarget(target);
-      return;
-    }
-
-    updateCursorFromTarget(target);
-  };
-
-  window.addEventListener("pointermove", pointerMoveHandler, { passive: true });
-
   edgeWideScreenMedia = window.matchMedia("(min-width: 1600px)");
-  if (paperEdgeLeftEl.value && paperEdgeRightEl.value) {
+  if (paperEdgeLeftEl.value && paperEdgeRightEl.value && !isPerformanceLite.value) {
     edgeYToLeft = gsap.quickTo(paperEdgeLeftEl.value, "y", {
       duration: 0.45,
       ease: "power2.out",
@@ -372,16 +501,25 @@ onMounted(() => {
   };
   ambientVisibilityHandler();
   document.addEventListener("visibilitychange", ambientVisibilityHandler);
-  try {
-    disposeEasterEggs = useEasterEggs();
-  } catch {
-    disposeEasterEggs = null;
+
+  if (!isPerformanceLite.value && !prefersReducedMotion.value) {
+    easterEggsIdleTask = scheduleIdleTask(async () => {
+      try {
+        const { useEasterEggs } = await import("./composables/useEasterEggs");
+        disposeEasterEggs = useEasterEggs();
+      } catch {
+        disposeEasterEggs = null;
+      }
+    }, 2200);
   }
 });
 
 onUnmounted(() => {
   removeStudioWatch?.();
   forceUnlock();
+  cancelIdleTask(lenisIdleTask);
+  cancelIdleTask(cursorIdleTask);
+  cancelIdleTask(easterEggsIdleTask);
   appScrollTrigger?.kill();
   if (warmthRafId) {
     cancelAnimationFrame(warmthRafId);
@@ -391,11 +529,7 @@ onUnmounted(() => {
   rootStyle.setProperty("--scroll-progress", "0");
   scrollProgress.value = 0;
   applyGlobalWarmth(0);
-  window.removeEventListener("pointermove", pointerMoveHandler);
-  if (blankClickRippleHandler) {
-    document.removeEventListener("click", blankClickRippleHandler);
-    blankClickRippleHandler = null;
-  }
+  detachPointerEnhancements();
   edgeYToLeft = null;
   edgeYToRight = null;
   edgeWideScreenMedia = null;
@@ -406,6 +540,7 @@ onUnmounted(() => {
   disposeEasterEggs?.();
   disposeEasterEggs = null;
   globalAmbientEl.value?.classList.remove("ambient-paused");
+  document.documentElement.classList.remove("perf-lite");
   setCursorMagneticTarget(null);
   setCursorEnabled(false);
   destroyLenis();
@@ -544,12 +679,23 @@ body.what-i-build-dark .ambient-orb-2 {
   opacity: 0.3;
 }
 
+#global-ambient.ambient-lite .ambient-orb-1,
+#global-ambient.ambient-lite .ambient-orb-2 {
+  opacity: 0.42;
+  animation-duration: 42s;
+  filter: blur(78px);
+}
+
 .global-noise-overlay {
   opacity: 0.03;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 256px 256px;
   background-repeat: repeat;
+}
+
+.global-noise-overlay.noise-lite {
+  opacity: 0.018;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -589,6 +735,10 @@ body.what-i-build-dark .ambient-orb-2 {
 .paper-edge-right {
   transform: scaleX(-1);
   transform-origin: center center;
+}
+
+.paper-edge.paper-edge-lite {
+  opacity: 0.55;
 }
 
 .progress-inkwell {

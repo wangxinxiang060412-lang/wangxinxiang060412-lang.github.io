@@ -130,6 +130,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { gsap } from "gsap";
+import { usePointerEffects } from "../composables/usePointerEffects";
 
 const bigTextWrap = ref(null);
 const footerEl = ref(null);
@@ -146,6 +147,7 @@ const timeProgress = ref(0);
 const spotRatio = ref(0.5);
 const reducedMotion = ref(false);
 const brandChars = "xinxiang".split("");
+const { supportsPointerEffects } = usePointerEffects();
 let petTween = null;
 let petPatrolTween = null;
 let bubbleTimer = null;
@@ -177,6 +179,7 @@ function setSpotlightAt(x, y, duration = 0.45) {
 }
 
 function onSpotlightMove(e) {
+  if (!supportsPointerEffects.value) return;
   spotlightActive.value = true;
   const el = bigTextWrap.value;
   if (!el || !spotlightEl.value) return;
@@ -188,6 +191,7 @@ function onSpotlightMove(e) {
 }
 
 function onSpotlightLeave() {
+  if (!supportsPointerEffects.value) return;
   spotlightActive.value = false;
   spotRatio.value = 0.5;
   if (!spotlightEl.value) return;
