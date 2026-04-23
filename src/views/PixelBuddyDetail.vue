@@ -3,18 +3,47 @@
     ref="heroEl"
     class="relative min-h-screen overflow-hidden bg-[#120e0b] text-[#F5EFE5]"
   >
-    <div class="pointer-events-none absolute inset-0 dark-leather-overlay" aria-hidden="true" />
+    <div
+      class="pointer-events-none absolute inset-0 dark-leather-overlay"
+      aria-hidden="true"
+    />
     <div
       class="pointer-events-none absolute inset-0 opacity-35"
       style="
         background:
-          radial-gradient(900px 500px at 78% 28%, rgba(255, 126, 103, 0.2), transparent 70%),
-          radial-gradient(700px 460px at 14% 84%, rgba(255, 200, 170, 0.14), transparent 75%);
+          radial-gradient(
+            900px 500px at 78% 28%,
+            rgba(255, 126, 103, 0.2),
+            transparent 70%
+          ),
+          radial-gradient(
+            700px 460px at 14% 84%,
+            rgba(255, 200, 170, 0.14),
+            transparent 75%
+          );
       "
       aria-hidden="true"
     />
 
-    <div class="relative z-10 mx-auto grid min-h-screen w-full max-w-[1480px] items-center gap-16 px-6 py-20 md:px-12 lg:grid-cols-12 lg:gap-10 lg:px-20">
+    <div class="relative z-10 mx-auto w-full max-w-[1480px] px-6 pt-8 md:px-12 lg:px-20">
+      <button
+        ref="backButtonEl"
+        type="button"
+        class="group inline-flex items-center gap-3 rounded-full border border-white/20 bg-white/[0.06] px-5 py-2.5 font-mono text-[11px] uppercase tracking-[0.22em] text-[#F5EFE5] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.2,1)] hover:border-[#ff7e67]/70 hover:bg-[#ff7e67]/18 hover:text-[#fff5ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7e67]/60"
+        @click="goBackHome"
+      >
+        <span
+          class="inline-flex h-6 w-6 items-center justify-center rounded-full border border-current/35 text-[14px] transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.2,1)] group-hover:-translate-x-1"
+          aria-hidden="true"
+        >
+          ←
+        </span>
+        Back to Home
+      </button>
+    </div>
+    <div
+      class="relative z-10 mx-auto grid min-h-[calc(100vh-88px)] w-full max-w-[1480px] items-center gap-16 px-6 pb-20 pt-10 md:px-12 lg:grid-cols-12 lg:gap-10 lg:px-20"
+    >
       <div class="lg:col-span-5">
         <p
           ref="kickerEl"
@@ -32,7 +61,8 @@
           ref="descEl"
           class="font-body mt-8 max-w-[560px] text-[16px] leading-[1.9] text-[#F5EFE5]/78 md:text-[18px]"
         >
-          打破屏幕边界的生命感。这不仅是一款 App，而是活在灵动岛、锁屏和小组件里的像素伙伴。
+          打破屏幕边界的生命感。这不仅是一款
+          App，而是活在灵动岛、锁屏和小组件里的像素伙伴。
         </p>
         <div ref="tagsEl" class="mt-10 flex flex-wrap gap-3">
           <span
@@ -93,6 +123,7 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { gsap } from "gsap";
 
 const heroEl = ref(null);
@@ -102,10 +133,23 @@ const descEl = ref(null);
 const tagsEl = ref(null);
 const phoneStageEl = ref(null);
 const phoneEl = ref(null);
+const backButtonEl = ref(null);
+const router = useRouter();
 
 const techTags = ["SwiftUI", "ActivityKit", "WidgetKit", "App Group"];
 
 let ctx;
+
+function goBackHome() {
+  const hasSameOriginReferrer =
+    typeof document !== "undefined" &&
+    document.referrer.startsWith(window.location.origin);
+  if (window.history.length > 1 && hasSameOriginReferrer) {
+    router.back();
+    return;
+  }
+  router.push({ path: "/", hash: "#what-i-build" });
+}
 
 onMounted(() => {
   ctx = gsap.context(() => {
@@ -117,7 +161,13 @@ onMounted(() => {
       transformOrigin: "50% 50%",
     });
 
-    const textNodes = [kickerEl.value, titleEl.value, descEl.value, tagsEl.value].filter(Boolean);
+    const textNodes = [
+      backButtonEl.value,
+      kickerEl.value,
+      titleEl.value,
+      descEl.value,
+      tagsEl.value,
+    ].filter(Boolean);
 
     gsap.fromTo(
       textNodes,

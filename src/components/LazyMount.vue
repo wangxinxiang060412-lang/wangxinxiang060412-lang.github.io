@@ -1,6 +1,7 @@
 <template>
   <div
     ref="targetRef"
+    :id="anchorId || undefined"
     class="lazy-mount-shell"
     :style="shellStyle"
   >
@@ -32,6 +33,10 @@ const props = defineProps({
   rootMargin: {
     type: String,
     default: "320px 0px",
+  },
+  anchorId: {
+    type: String,
+    default: "",
   },
   idleTimeout: {
     type: Number,

@@ -1,5 +1,7 @@
 <template>
-  <div class="pointer-events-none fixed inset-x-0 top-4 z-[900] flex justify-center">
+  <div
+    class="pointer-events-none fixed inset-x-0 top-4 z-[900] flex justify-center"
+  >
     <nav
       ref="navEl"
       class="nav-pill pointer-events-auto flex items-center gap-7 rounded-full px-6 py-3 backdrop-blur-md"
@@ -100,10 +102,10 @@ const activeId = ref("about");
 let bookmarkTimeline = null;
 
 const links = [
-  { id: "about", label: "About", href: "#intro", emoji: "📌" },
+  { id: "about", label: "About", href: "#intro-anchor", emoji: "📌" },
   { id: "skills", label: "Skills", href: "#toolkit", emoji: "✦" },
-  { id: "work", label: "Work", href: "#what-i-build", emoji: "➜" },
-  { id: "contact", label: "Contact", href: "#contact", emoji: "✹" },
+  { id: "work", label: "Work", href: "#what-i-build-anchor", emoji: "➜" },
+  { id: "contact", label: "Contact", href: "#contact-anchor", emoji: "✹" },
 ];
 
 function setLinkRef(el, id) {
@@ -261,10 +263,30 @@ function updateNavSurface(elevated) {
 }
 
 useMagnetic(logoMedalEl, { maxOffset: 12, duration: 0.3 });
-useMagnetic(aboutSpanEl, { maxOffset: 16, duration: 0.3, hoverScale: 1.06, cursorLabel: "VIEW" });
-useMagnetic(skillsSpanEl, { maxOffset: 16, duration: 0.3, hoverScale: 1.06, cursorLabel: "VIEW" });
-useMagnetic(workSpanEl, { maxOffset: 16, duration: 0.3, hoverScale: 1.06, cursorLabel: "VIEW" });
-useMagnetic(contactSpanEl, { maxOffset: 16, duration: 0.3, hoverScale: 1.06, cursorLabel: "VIEW" });
+useMagnetic(aboutSpanEl, {
+  maxOffset: 16,
+  duration: 0.3,
+  hoverScale: 1.06,
+  cursorLabel: "VIEW",
+});
+useMagnetic(skillsSpanEl, {
+  maxOffset: 16,
+  duration: 0.3,
+  hoverScale: 1.06,
+  cursorLabel: "VIEW",
+});
+useMagnetic(workSpanEl, {
+  maxOffset: 16,
+  duration: 0.3,
+  hoverScale: 1.06,
+  cursorLabel: "VIEW",
+});
+useMagnetic(contactSpanEl, {
+  maxOffset: 16,
+  duration: 0.3,
+  hoverScale: 1.06,
+  cursorLabel: "VIEW",
+});
 
 onMounted(() => {
   if (!navEl.value) return;
@@ -311,7 +333,10 @@ onMounted(() => {
     onUpdate: (self) => {
       if (!navEl.value) return;
       const compactProgress = gsap.utils.clamp(0, 1, self.progress);
-      navEl.value.style.setProperty("--compact-progress", compactProgress.toFixed(4));
+      navEl.value.style.setProperty(
+        "--compact-progress",
+        compactProgress.toFixed(4),
+      );
       navEl.value.classList.toggle("is-compact", self.scroll() > 120);
     },
   });
@@ -468,7 +493,11 @@ onUnmounted(() => {
   width: 100vw;
   height: 1px;
   transform-origin: left center;
-  background: linear-gradient(90deg, rgba(255, 176, 133, 0.9), rgba(255, 176, 133, 0.35));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 176, 133, 0.9),
+    rgba(255, 176, 133, 0.35)
+  );
   pointer-events: none;
 }
 

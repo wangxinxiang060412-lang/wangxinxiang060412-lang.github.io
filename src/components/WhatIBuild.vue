@@ -103,9 +103,25 @@
                     ? '/pixel-buddy'
                     : '/'
               "
-              class="warm-link font-mono mt-7 inline-flex text-[11px] uppercase tracking-[0.22em] text-[#F5EFE5] no-underline"
+              :class="
+                project.projectKey === 'pixel-buddy'
+                  ? 'group warm-link warm-link-cta font-mono mt-8 inline-flex items-center gap-2 rounded-full border border-[#ff7e67]/70 bg-[#ff7e67]/20 px-5 py-2.5 text-[11px] uppercase tracking-[0.22em] text-[#fff5ef] no-underline shadow-[0_18px_38px_rgba(255,126,103,0.28)] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.2,1)] hover:-translate-y-[1px] hover:bg-[#ff7e67]/30 hover:shadow-[0_22px_44px_rgba(255,126,103,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff7e67]/65'
+                  : 'warm-link font-mono mt-7 inline-flex text-[11px] uppercase tracking-[0.22em] text-[#F5EFE5] no-underline'
+              "
             >
+              <span
+                v-if="project.projectKey === 'pixel-buddy'"
+                class="h-1.5 w-1.5 rounded-full bg-[#ffd5c7] shadow-[0_0_12px_rgba(255,213,199,0.8)]"
+                aria-hidden="true"
+              />
               View Details
+              <span
+                v-if="project.projectKey === 'pixel-buddy'"
+                class="inline-block transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.2,1)] group-hover:translate-x-0.5"
+                aria-hidden="true"
+              >
+                →
+              </span>
             </router-link>
           </div>
 
@@ -463,5 +479,9 @@ onUnmounted(() => {
 
 .warm-link:hover::after {
   transform: scaleX(1);
+}
+
+.warm-link-cta::after {
+  display: none;
 }
 </style>

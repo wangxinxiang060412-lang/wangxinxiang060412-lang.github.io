@@ -23,6 +23,7 @@
       />
       <LazyMount
         :is="IntroSection"
+        anchor-id="intro-anchor"
         min-height="980px"
         root-margin="420px 0px"
         @mounted="scheduleScrollRefresh"
@@ -36,12 +37,14 @@
       <ToolkitCards />
       <LazyMount
         :is="WhatIBuildSection"
+        anchor-id="what-i-build-anchor"
         min-height="3100px"
         root-margin="720px 0px"
         @mounted="scheduleScrollRefresh"
       />
       <LazyMount
         :is="ContactSection"
+        anchor-id="contact-anchor"
         min-height="1120px"
         root-margin="520px 0px"
         @mounted="scheduleScrollRefresh"
