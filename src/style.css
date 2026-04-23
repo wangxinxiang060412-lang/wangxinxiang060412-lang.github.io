@@ -1,0 +1,163 @@
+/* ==============================================
+   FONT IMPORTS — Premium, distinctive typefaces
+   ============================================== */
+/* Clash Display (display / headings) + Satoshi (body) via Fontshare */
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@300,400,500,700&display=swap');
+/* Google Fonts removed to avoid CORB/network blocks in some regions */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Scrollbar ──────────────────── */
+html,body { scrollbar-width:none; -ms-overflow-style:none; overflow-x:hidden }
+html::-webkit-scrollbar, body::-webkit-scrollbar { display:none }
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0 }
+
+/* ── Design tokens ──────────────── */
+:root {
+  --bg:      #06060A;
+  --accent:  #FFB085;
+  --accent-deep: #ff7e67;
+  --accent-soft: #ffc4a8;
+  --bg-warm: #FDFCF8;
+  --accent-rgb: 255, 176, 133;
+  --accent-20: rgba(255, 176, 133, 0.2);
+  --accent-40: rgba(255, 176, 133, 0.4);
+  --mid:     #00829B;
+  --fg:      rgba(255,255,255,0.93);
+  --dim:     rgba(255,255,255,0.58);
+  --muted:   rgba(255,255,255,0.32);
+  --border:  rgba(255,255,255,0.08);
+  --card:    rgba(255,255,255,0.04);
+  --card-border: rgba(255,255,255,0.08);
+  --glow:    var(--accent-40);
+
+  /* ✅ Premium font system */
+  --font-display: 'Clash Display', 'Satoshi', system-ui, sans-serif;
+  --font-body:    'Satoshi', 'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+  --font-serif:   'Instrument Serif', Georgia, serif;
+
+  /* Easing tokens */
+  --ease-out-expo:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 夜灯下看札记 */
+    --bg-warm: #1A1614;
+    --paper-0: #1F1916;
+    --paper-1: #241E1A;
+    --ink-0: #F5EFE5;
+    --ink-1: #E8DDC9;
+    --ink-2: #C4B5A5;
+    --ink-3: #8A7770;
+  }
+}
+
+/* ── Font utility classes ───────── */
+.font-display { font-family: var(--font-display); font-feature-settings: 'ss01', 'ss02'; }
+.font-body    { font-family: var(--font-body); }
+.font-mono    { font-family: var(--font-mono); }
+.font-serif   { font-family: var(--font-serif); font-style: italic; }
+
+/* ── Base ───────────────────────── */
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-weight: 400;
+  cursor: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    cursor: none !important;
+  }
+
+  body *:not(input):not(textarea):not([contenteditable]) {
+    cursor: none !important;
+  }
+
+  input,
+  textarea,
+  [contenteditable] {
+    caret-color: var(--accent) !important;
+  }
+}
+
+/* focus-visible — all devices (not gated by hover / pointer) */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline-offset: 4px;
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  outline-color: var(--accent-deep);
+  outline-offset: 3px;
+}
+
+img { display:block; max-width:100% }
+
+/* ── Selection ──────────────────── */
+::selection {
+  background: rgba(var(--accent-rgb), 0.3);
+  color: white;
+}
+
+/* ── Cursors ────────────────────── */
+.cur-dot {
+  width:7px; height:7px; background:var(--accent); border-radius:50%;
+  position:fixed; top:0; left:0; z-index:9999; pointer-events:none;
+  transform:translate(-50%,-50%); mix-blend-mode:screen;
+}
+.cur-ring {
+  width:34px; height:34px; border:1px solid rgba(var(--accent-rgb),0.5); border-radius:50%;
+  position:fixed; top:0; left:0; z-index:9998; pointer-events:none;
+  transform:translate(-50%,-50%);
+}
+
+/* ── Progress bar ───────────────── */
+#progress-bar {
+  position:fixed; top:0; left:0; height:1px;
+  background:linear-gradient(90deg,var(--accent),var(--mid));
+  z-index:9997; width:0%;
+}
+
+/* ── Form resets ────────────────── */
+input, textarea {
+  background:transparent; outline:none; border:none;
+  color:var(--fg); font-family:var(--font-body); resize:none;
+}
+textarea,
+input {
+  caret-color: var(--accent) !important;
+}
+input::placeholder, textarea::placeholder { color:rgba(255,255,255,0.22) }
+
+/* ── Reduced motion ─────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
