@@ -141,6 +141,7 @@
           href="#intro"
           data-cursor="view"
           class="group inline-flex flex-col items-center no-underline"
+          @click="onScrollCtaClick"
         >
           <span
             class="font-mono mb-[20px] text-[8px] tracking-[0.5em] text-[#4A3B32]/30"
@@ -222,6 +223,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { cancelIdleTask, scheduleIdleTask } from "../composables/useIdleTask";
 import { useIsLowEndDevice } from "../composables/useIsLowEndDevice";
+import { useLenis } from "../composables/useLenis";
 import { useMagnetic } from "../composables/useMagnetic";
 import { useReducedMotion } from "../composables/useReducedMotion";
 import { useScrollLock } from "../composables/useScrollLock";
@@ -384,6 +386,22 @@ useMagnetic(scrollCtaEl, {
   duration: 0.24,
   cursorLabel: "VIEW",
 });
+
+function onScrollCtaClick(event) {
+  const target = document.getElementById("intro");
+  if (!target) return;
+  event.preventDefault();
+  const y = target.getBoundingClientRect().top + window.scrollY - 48;
+  const { lenis } = useLenis();
+  if (lenis) {
+    lenis.scrollTo(y, {
+      duration: 1.05,
+      easing: gsap.parseEase("cubic-bezier(0.76, 0, 0.24, 1)"),
+    });
+    return;
+  }
+  window.scrollTo({ top: y, behavior: "smooth" });
+}
 
 let ctx;
 let runIntro = null;

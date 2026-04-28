@@ -1,6 +1,8 @@
 <template>
   <section
+    ref="studioRootEl"
     class="studio-root fixed inset-0 h-screen w-screen overflow-hidden bg-transparent"
+    :class="{ 'studio-safari-lite': isSafariLike }"
     :style="{ '--mouse-x': `${mouse.x}px`, '--mouse-y': `${mouse.y}px` }"
     @mousemove="onShellMouseMove"
   >
@@ -20,6 +22,7 @@
       v-show="hoverPreview.visible"
       ref="hoverPreviewEl"
       class="hover-preview pointer-events-none fixed z-[57] min-w-[212px] max-w-[280px] rounded-[8px] border border-[#4A3B32]/15 bg-[rgba(253,252,248,0.96)] px-[14px] py-[10px] text-[#2D2422] shadow-[0_20px_35px_rgba(45,36,34,0.18)]"
+      :class="isSafariLike ? 'safari-no-backdrop safari-light-shadow safari-webkit-layer' : ''"
       :style="{
         left: `${hoverPreview.x}px`,
         top: `${hoverPreview.y}px`,
@@ -46,7 +49,7 @@
       aria-hidden="true"
     >
       <div
-        class="absolute inset-0"
+        class="studio-intro-backdrop absolute inset-0"
         style="
           background: radial-gradient(
               ellipse at center,
@@ -117,7 +120,7 @@
     <button
       ref="backBtnEl"
       type="button"
-      class="fixed left-8 top-8 z-[60] flex items-center gap-2.5 rounded-full border border-[#5C4D49]/28 bg-[#FDFCF8]/85 px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-[#4A3B32] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.2,1)] hover:-translate-x-1 hover:bg-[#5C4D49]/6 hover:text-[#2D2422]"
+      class="studio-back-btn fixed left-8 top-8 z-[60] flex items-center gap-2.5 rounded-full border border-[#5C4D49]/28 bg-[#FDFCF8]/85 px-5 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-[#4A3B32] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.2,1)] hover:-translate-x-1 hover:bg-[#5C4D49]/6 hover:text-[#2D2422]"
       style="backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); opacity: 0;"
       @click="goBack"
       @mouseenter="setCursorHover(true, 'BACK')"
@@ -210,7 +213,7 @@
     <!-- ✅ DETAIL HINT (focus-only, repositioned to avoid panel overlap) -->
     <div
       v-if="focusedMesh"
-      class="pointer-events-none fixed bottom-6 left-1/2 z-[56] -translate-x-1/2 rounded-full border border-[#5C4D49]/20 bg-[#FDFCF8]/78 px-4 py-2 text-[#4A3B32]/72"
+      class="detail-hint-shell pointer-events-none fixed bottom-6 left-1/2 z-[56] -translate-x-1/2 rounded-full border border-[#5C4D49]/20 bg-[#FDFCF8]/78 px-4 py-2 text-[#4A3B32]/72"
       style="backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);"
       aria-hidden="true"
     >
@@ -232,7 +235,7 @@
           class="pointer-events-none relative mx-auto h-full w-full max-w-[1440px]"
         >
           <aside
-            class="studio-panel pointer-events-auto absolute right-0 top-1/2 z-[100] max-h-[78vh] w-[90vw] -translate-y-1/2 overflow-y-auto rounded-3xl border border-[#5C4D49]/12 p-7 text-[#2D2422] shadow-[0_20px_45px_rgba(74,59,50,0.18)] will-change-[transform,backdrop-filter] md:w-[380px] md:p-8"
+            class="studio-panel pointer-events-auto absolute right-0 top-1/2 z-[100] max-h-[78vh] w-[90vw] -translate-y-1/2 overflow-y-auto rounded-3xl border border-[#5C4D49]/12 p-7 text-[#2D2422] shadow-[0_20px_45px_rgba(74,59,50,0.18)] md:w-[380px] md:p-8"
           >
             <div class="relative z-10">
               <button
@@ -392,6 +395,8 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { useCustomCursor } from "../composables/useCustomCursor";
+import { useIsLowEndDevice } from "../composables/useIsLowEndDevice";
+import { useIsSafari } from "../composables/useIsSafari";
 import { isStudioOpen } from "../composables/useStudio";
 import { useScrollLock } from "../composables/useScrollLock";
 
@@ -399,6 +404,7 @@ import { useScrollLock } from "../composables/useScrollLock";
    REFS / STATE
    ─────────────────────────────────────────────────────────── */
 const canvasEl = ref(null);
+const studioRootEl = ref(null);
 const backBtnEl = ref(null);
 const progressWrapEl = ref(null);
 const bottomHintEl = ref(null);
@@ -408,6 +414,9 @@ const activeCard = ref(null);
 const mouse = reactive({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
 let mouseX = 0;
 let mouseY = 0;
+let shellPointerRafId = 0;
+let pendingShellPointerX = 0;
+let pendingShellPointerY = 0;
 const showIntroOverlay = ref(true);
 const hasKeyboardNavigation = ref(false);
 const introLines = [
@@ -433,6 +442,8 @@ const epilogueSummary =
   "这套设计的目标是把碎片化的旅行决策压缩到 10 分钟内完成。从战略到界面，每一个决策都围绕「少输入、少跳转、少冗余」展开。如果你也在思考类似问题，欢迎一起聊聊。";
 
 const { setCursorEnabled, setCursorHover, clearCursorHover } = useCustomCursor();
+const { isLowEndDevice } = useIsLowEndDevice();
+const { isSafariLike, isIOS } = useIsSafari();
 const { lock, unlock, forceUnlock } = useScrollLock();
 const router = useRouter();
 const actLabelCn = { 1: "战略", 2: "规划", 3: "界面" };
@@ -452,6 +463,35 @@ let onReducedMotionChange = null;
 function detectReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function isStudioLiteMode() {
+  return prefersReducedMotion || isLowEndDevice.value || isIOS.value;
+}
+
+function getStudioPixelRatio() {
+  const dpr = window.devicePixelRatio || 1;
+  if (isIOS.value || isLowEndDevice.value) return 1;
+  if (isSafariLike.value) return Math.min(dpr, 1.25);
+  return Math.min(dpr, 1.5);
+}
+
+function getBloomConfig() {
+  if (prefersReducedMotion || isIOS.value || isLowEndDevice.value) {
+    return null;
+  }
+  if (isSafariLike.value) {
+    return {
+      strength: 0.18,
+      radius: 0.18,
+      threshold: 1.22,
+    };
+  }
+  return {
+    strength: 0.4,
+    radius: 0.4,
+    threshold: 1.1,
+  };
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -657,12 +697,15 @@ const pointerListenerOpts = { passive: true };
 let resizeHandler,
   pointerDownHandler,
   pointerMoveHandler,
+  windowKeydownHandler,
   pointerUpHandler,
   clickHandler,
   wheelHandler;
 let resizeTimer = 0;
 let lastViewportWidth = window.innerWidth;
 let lastViewportHeight = window.innerHeight;
+const shellBounds = { left: 0, top: 0, width: 1, height: 1 };
+const canvasBounds = { left: 0, top: 0, width: 1, height: 1 };
 
 const focusedMesh = shallowRef(null);
 let focusTiltEnabled = false;
@@ -688,6 +731,7 @@ const hoverPreviewWorld = new THREE.Vector3();
 let hoverStableFrames = 0;
 let lastHoverCandidate = null;
 const HOVER_STABILITY_FRAMES = 3;
+let hoverRaycastFrame = 0;
 
 const RING_RADIUS_DESKTOP = 38;
 const RING_RADIUS_MOBILE = 28;
@@ -723,6 +767,38 @@ function clampHoverPreviewPosition() {
   const minY = padding;
   const maxY = window.innerHeight - padding - HOVER_PREVIEW_HEIGHT;
   hoverPreview.y = Math.min(Math.max(hoverPreview.y, minY), maxY);
+}
+
+function refreshPointerBounds() {
+  const shellRect = studioRootEl.value?.getBoundingClientRect();
+  if (shellRect) {
+    shellBounds.left = shellRect.left;
+    shellBounds.top = shellRect.top;
+    shellBounds.width = shellRect.width || 1;
+    shellBounds.height = shellRect.height || 1;
+  }
+
+  const canvasRect = renderer?.domElement?.getBoundingClientRect() || canvasEl.value?.getBoundingClientRect();
+  if (canvasRect) {
+    canvasBounds.left = canvasRect.left;
+    canvasBounds.top = canvasRect.top;
+    canvasBounds.width = canvasRect.width || 1;
+    canvasBounds.height = canvasRect.height || 1;
+  }
+}
+
+function flushShellMouseMove() {
+  shellPointerRafId = 0;
+  mouse.x = pendingShellPointerX;
+  mouse.y = pendingShellPointerY;
+
+  mouseX = ((pendingShellPointerX - shellBounds.left) / shellBounds.width) * 2 - 1;
+  mouseY = -((pendingShellPointerY - shellBounds.top) / shellBounds.height) * 2 + 1;
+
+  if (ndc) {
+    ndc.x = ((pendingShellPointerX - canvasBounds.left) / canvasBounds.width) * 2 - 1;
+    ndc.y = -((pendingShellPointerY - canvasBounds.top) / canvasBounds.height) * 2 + 1;
+  }
 }
 
 function updateHoverPreviewPosition(mesh) {
@@ -1130,14 +1206,14 @@ function initThree() {
 
   renderer = new THREE.WebGLRenderer({
     canvas: canvasEl.value,
-    antialias: true,
+    antialias: !isStudioLiteMode(),
     alpha: true,
     powerPreference: "high-performance",
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(getStudioPixelRatio());
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !isStudioLiteMode();
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   raycaster = new THREE.Raycaster();
@@ -1156,7 +1232,13 @@ function createAmbientParticles() {
   const warmA = new THREE.Color(0xe6d3b8);
   const warmB = new THREE.Color(0xffb085);
 
-  const dustCount = prefersReducedMotion ? 100 : 200;
+  const dustCount = prefersReducedMotion
+    ? 100
+    : isIOS.value || isLowEndDevice.value
+      ? 72
+      : isSafariLike.value
+        ? 120
+        : 200;
   const dustPositions = new Float32Array(dustCount * 3);
   const dustColors = new Float32Array(dustCount * 3);
   for (let i = 0; i < dustCount; i += 1) {
@@ -1188,7 +1270,13 @@ function createAmbientParticles() {
 
   const inkTexture = createInkDotTexture(256);
   inkSpriteCloud = new THREE.Group();
-  const inkCount = prefersReducedMotion ? 30 : 80;
+  const inkCount = prefersReducedMotion
+    ? 30
+    : isIOS.value || isLowEndDevice.value
+      ? 24
+      : isSafariLike.value
+        ? 42
+        : 80;
   for (let i = 0; i < inkCount; i += 1) {
     const color = i % 2 === 0 ? 0xe6d3b8 : 0xffb085;
     const material = new THREE.SpriteMaterial({
@@ -1385,13 +1473,18 @@ function getFrontMaterial(mesh) {
 function initPostProcessing() {
   composer = new EffectComposer(renderer);
   composer.setSize(window.innerWidth, window.innerHeight);
-  composer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  composer.setPixelRatio(getStudioPixelRatio());
   composer.addPass(new RenderPass(scene, camera));
+  const bloomConfig = getBloomConfig();
+  if (!bloomConfig) {
+    bloomPass = null;
+    return;
+  }
   bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.4, // 可以稍微提亮一点泛光强度
-    0.4,
-    1.1, // 阈值必须大于 1.0，保护白色的 UI 图片不被漂白
+    bloomConfig.strength,
+    bloomConfig.radius,
+    bloomConfig.threshold,
   );
   composer.addPass(bloomPass);
 }
@@ -1862,9 +1955,17 @@ function playEntranceSequence() {
     gsap.set(el, { opacity: 0, y: -8 });
   });
   if (introOverlayEl.value) {
-    gsap.set(introOverlayEl.value, { opacity: 1, y: 0, filter: "blur(0px)" });
+    gsap.set(introOverlayEl.value, {
+      opacity: 1,
+      y: 0,
+      ...(isSafariLike.value ? {} : { filter: "blur(0px)" }),
+    });
   }
-  gsap.set(introChars, { yPercent: 120, opacity: 0, filter: "blur(4px)" });
+  gsap.set(introChars, {
+    yPercent: 120,
+    opacity: 0,
+    ...(isSafariLike.value ? {} : { filter: "blur(4px)" }),
+  });
 
   meshes.forEach((mesh) => {
     gsap.killTweensOf(mesh.position);
@@ -1907,10 +2008,10 @@ function playEntranceSequence() {
     {
       yPercent: 0,
       opacity: 1,
-      filter: "blur(0px)",
       duration: 0.9,
       stagger: 0.028,
       ease: "power3.out",
+      ...(isSafariLike.value ? {} : { filter: "blur(0px)" }),
     },
     0.3,
   );
@@ -1929,11 +2030,11 @@ function playEntranceSequence() {
   tl.to(
     introOverlayEl.value,
     {
-      y: -28,
+      y: isSafariLike.value ? -18 : -28,
       opacity: 0,
-      filter: "blur(10px)",
-      duration: 0.7,
+      duration: isSafariLike.value ? 0.52 : 0.7,
       ease: "power2.inOut",
+      ...(isSafariLike.value ? {} : { filter: "blur(10px)" }),
     },
     2.5,
   );
@@ -2390,22 +2491,26 @@ function onPanelEnter(el, done) {
   gsap.set(panel, { transformOrigin: "right center" });
 
   const tl = gsap.timeline({ onComplete: done });
+  const panelFrom = {
+    x: isSafariLike.value ? 40 : 60,
+    scale: isSafariLike.value ? 0.96 : 0.92,
+    opacity: 0,
+  };
+  const panelTo = {
+    x: 0,
+    scale: 1,
+    opacity: 1,
+    duration: isSafariLike.value ? 0.48 : 0.75,
+    ease: "power3.out",
+  };
+  if (!isSafariLike.value) {
+    panelFrom.backdropFilter = "blur(0px)";
+    panelTo.backdropFilter = "blur(40px)";
+  }
   tl.fromTo(
     panel,
-    {
-      x: 60,
-      scale: 0.92,
-      opacity: 0,
-      backdropFilter: "blur(0px)",
-    },
-    {
-      x: 0,
-      scale: 1,
-      opacity: 1,
-      backdropFilter: "blur(40px)",
-      duration: 0.75,
-      ease: "power3.out",
-    },
+    panelFrom,
+    panelTo,
   );
   tl.fromTo(
     children,
@@ -2437,12 +2542,12 @@ function onPanelLeave(el, done) {
   tl.to(
     panel,
     {
-      scale: 0.92,
-      x: 60,
+      scale: isSafariLike.value ? 0.96 : 0.92,
+      x: isSafariLike.value ? 40 : 60,
       opacity: 0,
-      backdropFilter: "blur(0px)",
-      duration: 0.5,
+      duration: isSafariLike.value ? 0.34 : 0.5,
       ease: "power3.in",
+      ...(isSafariLike.value ? {} : { backdropFilter: "blur(0px)" }),
     },
     "<0.06",
   );
@@ -2588,24 +2693,10 @@ function onPointerUp(event) {
 }
 
 function onShellMouseMove(event) {
-  const el = event.currentTarget;
-  const rect = el.getBoundingClientRect();
-  mouse.x = event.clientX;
-  mouse.y = event.clientY;
-  const rw = rect.width || 1;
-  const rh = rect.height || 1;
-  mouseX = ((event.clientX - rect.left) / rw) * 2 - 1;
-  mouseY = -((event.clientY - rect.top) / rh) * 2 + 1;
-
-  if (focusedMesh.value) return;
-
-  if (renderer?.domElement && ndc) {
-    const cnv = renderer.domElement.getBoundingClientRect();
-    const cw = cnv.width || 1;
-    const ch = cnv.height || 1;
-    ndc.x = ((event.clientX - cnv.left) / cw) * 2 - 1;
-    ndc.y = -((event.clientY - cnv.top) / ch) * 2 + 1;
-  }
+  pendingShellPointerX = event.clientX;
+  pendingShellPointerY = event.clientY;
+  if (shellPointerRafId) return;
+  shellPointerRafId = window.requestAnimationFrame(flushShellMouseMove);
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -2925,7 +3016,7 @@ function animate() {
     Math.abs(springVelocity) < 1e-4 &&
     !prefersReducedMotion
   ) {
-    targetRotation -= 0.002;
+    targetRotation -= isSafariLike.value ? 0.0014 : 0.002;
   }
 
   updateActiveActByRotation();
@@ -3003,29 +3094,33 @@ function animate() {
     hoverStableFrames = 0;
     lastHoverCandidate = null;
   } else if (raycaster && ndc && meshes.length) {
-    raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(meshes, false);
-    const candidate = hits.length ? hits[0].object : null;
+    const hoverThrottle = isSafariLike.value || isLowEndDevice.value ? 2 : 1;
+    hoverRaycastFrame = (hoverRaycastFrame + 1) % hoverThrottle;
+    if (hoverRaycastFrame === 0) {
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(meshes, false);
+      const candidate = hits.length ? hits[0].object : null;
 
-    if (candidate === lastHoverCandidate) {
-      hoverStableFrames += 1;
-    } else {
-      hoverStableFrames = 0;
-      lastHoverCandidate = candidate;
-    }
-
-    if (hoverStableFrames >= HOVER_STABILITY_FRAMES) {
-      if (candidate !== hoveredMesh) {
-        if (candidate) applyHoverEnter(candidate);
-        else if (hoveredMesh) applyHoverLeave(hoveredMesh);
+      if (candidate === lastHoverCandidate) {
+        hoverStableFrames += 1;
+      } else {
+        hoverStableFrames = 0;
+        lastHoverCandidate = candidate;
       }
-      if (hoveredMesh && hoveredMesh === candidate) {
-        const tx = hoveredMesh.userData.origRot.x - ndc.y * 0.035;
-        const ty = hoveredMesh.userData.origRot.y + ndc.x * 0.055;
-        hoveredMesh.rotation.x +=
-          (tx - hoveredMesh.rotation.x) * 0.1;
-        hoveredMesh.rotation.y +=
-          (ty - hoveredMesh.rotation.y) * 0.1;
+
+      if (hoverStableFrames >= HOVER_STABILITY_FRAMES) {
+        if (candidate !== hoveredMesh) {
+          if (candidate) applyHoverEnter(candidate);
+          else if (hoveredMesh) applyHoverLeave(hoveredMesh);
+        }
+        if (hoveredMesh && hoveredMesh === candidate) {
+          const tx = hoveredMesh.userData.origRot.x - ndc.y * 0.035;
+          const ty = hoveredMesh.userData.origRot.y + ndc.x * 0.055;
+          hoveredMesh.rotation.x +=
+            (tx - hoveredMesh.rotation.x) * 0.1;
+          hoveredMesh.rotation.y +=
+            (ty - hoveredMesh.rotation.y) * 0.1;
+        }
       }
     }
   }
@@ -3064,8 +3159,11 @@ function onResize() {
   }
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(getStudioPixelRatio());
   composer?.setSize(window.innerWidth, window.innerHeight);
+  composer?.setPixelRatio?.(getStudioPixelRatio());
   bloomPass?.setSize?.(window.innerWidth, window.innerHeight);
+  refreshPointerBounds();
 
   const newRadius = isMobile ? RING_RADIUS_MOBILE : RING_RADIUS_DESKTOP;
 
@@ -3167,22 +3265,52 @@ onMounted(async () => {
 
   setCursorEnabled(true);
   disposeRequested = false;
+  await new Promise((resolve) => window.requestAnimationFrame(resolve));
+  const studioInitDelay = isIOS.value ? 120 : isSafariLike.value ? 80 : 0;
+  if (studioInitDelay > 0) {
+    await new Promise((resolve) => window.setTimeout(resolve, studioInitDelay));
+  }
+  if (disposeRequested) return;
   initThree();
   createAmbientParticles();
   await createSpatialImages();
+  if (disposeRequested) return;
+  refreshPointerBounds();
 
   clickHandler = (event) => onCanvasClick(event);
   resizeHandler = () => {
     clearTimeout(resizeTimer);
-    resizeTimer = window.setTimeout(() => onResize(), 80);
+    resizeTimer = window.setTimeout(() => onResize(), isSafariLike.value ? 120 : 80);
   };
   pointerDownHandler = (e) => onPointerDown(e);
   pointerMoveHandler = (e) => onPointerMove(e);
   // ✅ FIX: pass event so setPointerCapture can be released
   pointerUpHandler = (e) => onPointerUp(e);
   wheelHandler = (e) => onFocusWheel(e);
+  // ✅ FIX: Esc / arrow / Enter still work even when focus is on a
+  // panel button (which steals focus from the canvas).
+  windowKeydownHandler = (e) => {
+    if (!studioRootEl.value) return;
+    const target = e.target;
+    if (target instanceof Element) {
+      const tag = target.tagName;
+      // 在文本输入控件里，不要劫持键盘
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      // 如果焦点已经在 canvas 上，由 canvas 的 onCanvasKeydown 处理，避免双触发
+      if (target === canvasEl.value) return;
+    }
+    onCanvasKeydown(e);
+  };
 
   window.addEventListener("resize", resizeHandler, resizeListenerOpts);
+  window.addEventListener("keydown", windowKeydownHandler);
 
   const canvas = renderer.domElement;
   canvas.addEventListener("click", clickHandler);
@@ -3227,6 +3355,10 @@ onUnmounted(() => {
   clearHoverPreviewTimer();
   hideHoverPreview();
   disposeRequested = true;
+  if (shellPointerRafId) {
+    cancelAnimationFrame(shellPointerRafId);
+    shellPointerRafId = 0;
+  }
   clearCardHoverState();
   clearCursorHover();
   setCursorEnabled(false);
@@ -3247,6 +3379,10 @@ onUnmounted(() => {
   }
 
   window.removeEventListener("resize", resizeHandler, resizeListenerOpts);
+  if (windowKeydownHandler) {
+    window.removeEventListener("keydown", windowKeydownHandler);
+    windowKeydownHandler = null;
+  }
   window.removeEventListener(
     "pointermove",
     pointerMoveHandler,
@@ -3371,6 +3507,17 @@ onUnmounted(() => {
   background-size: 22px 22px;
 }
 
+.studio-safari-lite .studio-intro-backdrop {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.studio-safari-lite .studio-back-btn,
+.studio-safari-lite .detail-hint-shell {
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
 /* Hint text fade */
 .hint-fade-enter-active,
 .hint-fade-leave-active {
@@ -3395,6 +3542,12 @@ onUnmounted(() => {
   background: rgba(253, 252, 248, 0.92);
   -webkit-backdrop-filter: blur(40px);
   backdrop-filter: blur(40px);
+}
+
+.studio-safari-lite .studio-panel {
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 34px rgba(74, 59, 50, 0.14);
 }
 
 .studio-root aside::-webkit-scrollbar {
@@ -3436,6 +3589,10 @@ onUnmounted(() => {
   will-change: transform, opacity, filter;
 }
 
+.studio-safari-lite .intro-char {
+  will-change: transform, opacity;
+}
+
 .studio-canvas:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px rgba(255, 176, 133, 0.55);
@@ -3448,6 +3605,11 @@ onUnmounted(() => {
   padding: 7px 14px;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
+}
+
+.studio-safari-lite .studio-progress {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
 .studio-progress-label {
@@ -3561,6 +3723,11 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateY(18px);
   filter: blur(6px);
+}
+
+.studio-safari-lite .epilogue-rise-enter-from,
+.studio-safari-lite .epilogue-rise-leave-to {
+  filter: none;
 }
 
 .detail-hint-label {

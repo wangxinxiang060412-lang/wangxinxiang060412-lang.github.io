@@ -100,11 +100,31 @@ let sectionTriggers = [];
 let navElevated = false;
 const activeId = ref("about");
 let bookmarkTimeline = null;
+let resizeIndicatorHandler = null;
+let resizeIndicatorTimer = 0;
 
 const links = [
-  { id: "about", label: "About", href: "#intro-anchor", emoji: "📌" },
-  { id: "skills", label: "Skills", href: "#toolkit", emoji: "✦" },
-  { id: "work", label: "Work", href: "#what-i-build-anchor", emoji: "➜" },
+  {
+    id: "about",
+    label: "About",
+    href: "#intro-anchor",
+    rangeEndHref: "#toolkit",
+    emoji: "📌",
+  },
+  {
+    id: "skills",
+    label: "Skills",
+    href: "#toolkit",
+    rangeEndHref: "#what-i-build-anchor",
+    emoji: "✦",
+  },
+  {
+    id: "work",
+    label: "Work",
+    href: "#what-i-build-anchor",
+    rangeEndHref: "#contact-anchor",
+    emoji: "➜",
+  },
   { id: "contact", label: "Contact", href: "#contact-anchor", emoji: "✹" },
 ];
 
@@ -191,7 +211,7 @@ function scrollToTop() {
     });
     return;
   }
-  window.scrollTo({ top: 0, behavior: "auto" });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function scrollToSection(href) {
@@ -236,7 +256,7 @@ function scrollToSection(href) {
           });
           return;
         }
-        window.scrollTo({ top: y, behavior: "auto" });
+        window.scrollTo({ top: y, behavior: "smooth" });
         gsap.to(bookmarkBarEl.value, {
           opacity: 0,
           duration: 0.32,
@@ -309,10 +329,14 @@ onMounted(() => {
     .map((link) => {
       const target = document.querySelector(link.href);
       if (!target) return null;
+      const rangeEndTarget = link.rangeEndHref
+        ? document.querySelector(link.rangeEndHref)
+        : null;
       return ScrollTrigger.create({
         trigger: target,
         start: "top 45%",
-        end: "bottom 45%",
+        endTrigger: rangeEndTarget || target,
+        end: rangeEndTarget ? "top 45%" : "bottom 45%",
         onEnter: () => {
           activeId.value = link.id;
           moveIndicatorTo(link.id);
@@ -356,6 +380,15 @@ onMounted(() => {
     duration: 0.7,
     ease: "power3.out",
   });
+
+  resizeIndicatorHandler = () => {
+    if (resizeIndicatorTimer) window.clearTimeout(resizeIndicatorTimer);
+    resizeIndicatorTimer = window.setTimeout(() => {
+      moveIndicatorTo(activeId.value, true);
+      resizeIndicatorTimer = 0;
+    }, 120);
+  };
+  window.addEventListener("resize", resizeIndicatorHandler, { passive: true });
 });
 
 onUnmounted(() => {
@@ -364,6 +397,14 @@ onUnmounted(() => {
   sectionTriggers.forEach((trigger) => trigger?.kill());
   sectionTriggers = [];
   bookmarkTimeline?.kill();
+  if (resizeIndicatorHandler) {
+    window.removeEventListener("resize", resizeIndicatorHandler);
+    resizeIndicatorHandler = null;
+  }
+  if (resizeIndicatorTimer) {
+    window.clearTimeout(resizeIndicatorTimer);
+    resizeIndicatorTimer = 0;
+  }
   gsap.killTweensOf(navEl.value);
   gsap.killTweensOf(indicatorEl.value);
   gsap.killTweensOf(bookmarkBarEl.value);
@@ -510,5 +551,58 @@ onUnmounted(() => {
 :global(body.what-i-build-dark) .nav-pill a,
 :global(body.what-i-build-dark) .nav-pill .nav-link {
   color: #fdfcf8 !important;
+}
+
+@media (max-width: 767px) {
+  .nav-pill {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    gap: 0.55rem;
+    padding: 0.55rem 0.7rem;
+    justify-content: space-between;
+  }
+
+  .logo-link {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 10px !important;
+    letter-spacing: 0.16em !important;
+  }
+
+  .gooey-wrap {
+    gap: 0.2rem;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .nav-link {
+    padding: 0.45rem 0.6rem;
+    font-size: 9px !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  .nav-link::before {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .nav-pill {
+    gap: 0.4rem;
+    padding-right: 0.55rem;
+    padding-left: 0.55rem;
+  }
+
+  .logo-link {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+    font-size: 9px !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .nav-link {
+    padding: 0.42rem 0.5rem;
+    letter-spacing: 0.1em !important;
+  }
 }
 </style>

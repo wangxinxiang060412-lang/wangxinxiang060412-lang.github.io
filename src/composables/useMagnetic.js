@@ -80,5 +80,12 @@ export function useMagnetic(targetRef, options = {}) {
     if (enterHandler && wrapperEl) wrapperEl.removeEventListener('mouseenter', enterHandler)
     if (moveHandler && wrapperEl) wrapperEl.removeEventListener('mousemove', moveHandler)
     if (leaveHandler && wrapperEl) wrapperEl.removeEventListener('mouseleave', leaveHandler)
+    // 卸载时如果鼠标恰好停留在元素上，cursor 状态不会被自然 leave 事件清除，
+    // 这里兜底，避免「VIEW 标签 / 磁吸目标」残留到下一个画面。
+    if (cursorHover) {
+      setCursorHover(false)
+      setCursorMagneticTarget(null)
+    }
+    if (targetEl) gsap.killTweensOf(targetEl)
   })
 }

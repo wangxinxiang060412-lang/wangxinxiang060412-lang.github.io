@@ -131,6 +131,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { gsap } from "gsap";
 import { usePointerEffects } from "../composables/usePointerEffects";
+import { useLenis } from "../composables/useLenis";
 
 const bigTextWrap = ref(null);
 const footerEl = ref(null);
@@ -204,6 +205,14 @@ function onSpotlightLeave() {
 }
 
 function scrollToTop() {
+  const { lenis } = useLenis();
+  if (lenis) {
+    lenis.scrollTo(0, {
+      duration: 1.1,
+      easing: gsap.parseEase("cubic-bezier(0.76, 0, 0.24, 1)"),
+    });
+    return;
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -278,7 +287,15 @@ function onPetClick() {
 function launchToTop() {
   if (planeLaunching.value) return;
   planeLaunching.value = true;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const { lenis } = useLenis();
+  if (lenis) {
+    lenis.scrollTo(0, {
+      duration: 1.1,
+      easing: gsap.parseEase("cubic-bezier(0.76, 0, 0.24, 1)"),
+    });
+  } else {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   const finish = () => {
     planeLaunching.value = false;
   };
@@ -525,6 +542,7 @@ onUnmounted(() => {
 
 .paper-plane-btn.is-launching {
   animation: planeLaunch 1.1s cubic-bezier(0.2, 0.82, 0.17, 1) forwards;
+  pointer-events: none;
 }
 
 @keyframes blink {

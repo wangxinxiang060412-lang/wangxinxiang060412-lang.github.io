@@ -7,6 +7,7 @@ const routes = [
     path: "/work/lighttrip-curator",
     component: () => import("../views/LightTripDetail.vue"),
   },
+  { path: "/lighttrip", redirect: "/work/lighttrip-curator" },
   { path: "/work/lighttrip", redirect: "/work/lighttrip-curator" },
   {
     path: "/pixel-buddy",

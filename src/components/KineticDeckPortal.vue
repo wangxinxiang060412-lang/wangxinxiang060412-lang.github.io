@@ -2,19 +2,14 @@
   <section
     ref="sectionEl"
     class="relative w-full overflow-hidden bg-[#FDFCF8] px-6 py-24 md:px-12"
+    :class="{ 'portal-safari-lite': isSafariLike }"
     :style="{ '--mx': `${mouse.x}px`, '--my': `${mouse.y}px` }"
     @mousemove="onSectionMove"
   >
     <div
       class="pointer-events-none absolute inset-0"
-      style="
-        background: radial-gradient(
-          560px 560px at var(--mx) var(--my),
-          rgba(255, 176, 133, 0.16),
-          rgba(255, 176, 133, 0) 64%
-        );
-        filter: blur(48px);
-      "
+      :class="isSafariLike ? 'safari-static-glow' : ''"
+      :style="portalGlowStyle"
       aria-hidden="true"
     />
 
@@ -40,7 +35,12 @@
         <button
           ref="ctaButton"
           type="button"
-          class="relative mt-8 flex items-center gap-2.5 rounded-full bg-[#FFB085] px-8 py-3.5 text-sm font-medium tracking-[0.12em] text-[#2D2422] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.2,1)] hover:bg-[#FF9B6A] hover:shadow-[4px_4px_0px_#4A3B32] will-change-transform"
+          class="relative mt-8 flex items-center gap-2.5 rounded-full bg-[#FFB085] px-8 py-3.5 text-sm font-medium tracking-[0.12em] text-[#2D2422] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.2,1)]"
+          :class="
+            isSafariLike
+              ? 'safari-simple-transition safari-light-shadow'
+              : 'hover:bg-[#FF9B6A] hover:shadow-[4px_4px_0px_#4A3B32] will-change-transform'
+          "
           @mousemove="onCtaMouseMove"
           @mouseenter="onCtaEnter"
           @mouseleave="onCtaMouseLeave"
@@ -62,8 +62,13 @@
             v-for="(card, i) in cards"
             :key="card.src"
             :ref="(el) => setCardRef(el, i)"
-            class="origin-top absolute aspect-[1/2.1] w-[260px] rounded-[32px] border border-[#4A3B32]/10 shadow-[0_10px_22px_rgba(74,59,50,0.12)] will-change-transform"
-            :class="cardClass(i)"
+            class="origin-top absolute aspect-[1/2.1] w-[260px] rounded-[32px] border border-[#4A3B32]/10"
+            :class="[
+              cardClass(i),
+              isSafariLike
+                ? 'safari-light-shadow safari-simple-transition'
+                : 'shadow-[0_10px_22px_rgba(74,59,50,0.12)] will-change-transform',
+            ]"
             @mouseenter="onCardEnter(i)"
             @mouseleave="onCardLeave(i)"
           >
@@ -85,16 +90,18 @@
     <div
       ref="warmTransitionEl"
       class="pointer-events-none fixed inset-0 z-[9998] bg-[#FDFCF8] opacity-0"
+      :class="isSafariLike ? 'safari-webkit-layer' : ''"
       aria-hidden="true"
     />
   </section>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { usePointerEffects } from "../composables/usePointerEffects";
+import { useIsSafari } from "../composables/useIsSafari";
 import { preloadCuratorStudio } from "../composables/useStudioLoader";
 import { isStudioOpen } from "../composables/useStudio";
 
@@ -108,7 +115,14 @@ const warmTransitionEl = ref(null);
 const cardRefs = ref([]);
 const isExploding = ref(false);
 const { supportsPointerEffects } = usePointerEffects();
+const { isSafariLike } = useIsSafari();
 const mouse = ref({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+const portalGlowStyle = computed(() => ({
+  background: isSafariLike.value
+    ? "radial-gradient(420px 420px at 50% 24%, rgba(255, 176, 133, 0.12), rgba(255, 176, 133, 0) 68%)"
+    : "radial-gradient(560px 560px at var(--mx) var(--my), rgba(255, 176, 133, 0.16), rgba(255, 176, 133, 0) 64%)",
+  filter: isSafariLike.value ? "none" : "blur(48px)",
+}));
 
 const cards = [
   { src: "/deck-1.webp", alt: "Deck card left" },
@@ -143,6 +157,7 @@ function applyDefaultCardState() {
       scale: 1,
       opacity: 1,
       zIndex: 10 + i * 10,
+      boxShadow: "0 10px 22px rgba(74,59,50,0.12)",
     });
   });
 }
@@ -171,14 +186,61 @@ function triggerPortalTransition() {
   const [c1, c2, c3] = cardRefs.value;
   if (!copy || !warmTransition || !c1 || !c2 || !c3) return;
 
-  void preloadCuratorStudio();
   isExploding.value = true;
+  schedulePortalImport();
   const tl = gsap.timeline({
     defaults: { overwrite: "auto" },
     onComplete: () => {
       isStudioOpen.value = true;
     },
   });
+  if (isSafariLike.value) {
+    tl.to(
+      [c1, c3],
+      {
+        y: (index) => (index === 0 ? -24 : 24),
+        scale: 0.92,
+        opacity: 0,
+        transformOrigin: "center center",
+        duration: 0.42,
+        ease: "power2.inOut",
+      },
+      0,
+    )
+      .to(
+        c2,
+        {
+          scale: 2.35,
+          rotation: 0,
+          opacity: 0,
+          transformOrigin: "center center",
+          duration: 0.64,
+          ease: "power3.inOut",
+        },
+        0,
+      )
+      .to(
+        copy,
+        {
+          opacity: 0,
+          y: -10,
+          duration: 0.28,
+          ease: "power2.out",
+        },
+        0,
+      )
+      .to(
+        warmTransition,
+        {
+          opacity: 1,
+          duration: 0.42,
+          ease: "power2.out",
+        },
+        0.12,
+      );
+    return;
+  }
+
   tl.to(
     c1,
     {
@@ -244,20 +306,47 @@ function handlePortalClick() {
 }
 
 function onSectionMove(e) {
-  if (!supportsPointerEffects.value) return;
-  mouse.value = {
-    x: e.clientX,
-    y: e.clientY,
-  };
+  if (!supportsPointerEffects.value || isSafariLike.value) return;
+  pendingSectionMouseX = e.clientX;
+  pendingSectionMouseY = e.clientY;
+  if (sectionMoveRafId) return;
+  sectionMoveRafId = window.requestAnimationFrame(flushSectionMouseMove);
 }
 
 let ctaXTo;
 let ctaYTo;
 let cardBreathTimelines = [];
 let ctaBreathTween = null;
+let sectionMoveRafId = 0;
+let pendingSectionMouseX = 0;
+let pendingSectionMouseY = 0;
+let portalImportTimer = 0;
+
+function flushSectionMouseMove() {
+  sectionMoveRafId = 0;
+  mouse.value = {
+    x: pendingSectionMouseX,
+    y: pendingSectionMouseY,
+  };
+}
+
+function schedulePortalImport() {
+  if (portalImportTimer) {
+    window.clearTimeout(portalImportTimer);
+  }
+  window.requestAnimationFrame(() => {
+    portalImportTimer = window.setTimeout(() => {
+      void preloadCuratorStudio({
+        deferToNextFrame: true,
+        delayMs: isSafariLike.value ? 90 : 0,
+      });
+      portalImportTimer = 0;
+    }, isSafariLike.value ? 70 : 0);
+  });
+}
 
 function onCtaMouseMove(e) {
-  if (!supportsPointerEffects.value) return;
+  if (!supportsPointerEffects.value || isSafariLike.value) return;
   const el = ctaButton.value;
   if (!el || !ctaXTo || !ctaYTo) return;
   const r = el.getBoundingClientRect();
@@ -279,6 +368,10 @@ function startCardBreath(index) {
   const card = cardRefs.value[index];
   if (!card) return;
   cardBreathTimelines[index]?.kill();
+  if (isSafariLike.value) {
+    gsap.set(card, { boxShadow: "0 10px 22px rgba(74,59,50,0.12)" });
+    return;
+  }
   gsap.set(card, { boxShadow: "0 8px 20px rgba(74,59,50,0.1)" });
   cardBreathTimelines[index] = gsap.to(card, {
     boxShadow: "0 14px 32px rgba(74,59,50,0.16)",
@@ -293,6 +386,10 @@ function startCardBreath(index) {
 function startCtaBreath() {
   if (!ctaButton.value) return;
   ctaBreathTween?.kill();
+  if (isSafariLike.value) {
+    gsap.set(ctaButton.value, { boxShadow: "none", y: 0 });
+    return;
+  }
   gsap.set(ctaButton.value, { boxShadow: "none" });
   ctaBreathTween = gsap.to(ctaButton.value, {
     boxShadow: "3px 3px 0px #4A3B32",
@@ -317,9 +414,13 @@ function onCardEnter(index) {
       rotation: target.rotation,
       scale: isHovered ? 1.05 : 1,
       zIndex: isHovered ? 80 : 10 + i * 10,
-      boxShadow: isHovered
-        ? "0 18px 40px rgba(74,59,50,0.22)"
-        : "0 10px 22px rgba(74,59,50,0.12)",
+      ...(isSafariLike.value
+        ? {}
+        : {
+            boxShadow: isHovered
+              ? "0 18px 40px rgba(74,59,50,0.22)"
+              : "0 10px 22px rgba(74,59,50,0.12)",
+          }),
       duration: 0.45,
       ease: "power3.out",
       overwrite: "auto",
@@ -338,7 +439,9 @@ function onCardLeave() {
       rotation: target.rotation,
       scale: 1,
       zIndex: 10 + i * 10,
-      boxShadow: "0 10px 22px rgba(74,59,50,0.12)",
+      ...(isSafariLike.value
+        ? {}
+        : { boxShadow: "0 10px 22px rgba(74,59,50,0.12)" }),
       duration: 0.45,
       ease: "power3.out",
       overwrite: "auto",
@@ -401,6 +504,7 @@ function createDeckEntranceTimeline() {
 function startDeckBreath() {
   if (!deckEl.value) return;
   breatheTween?.kill();
+  if (isSafariLike.value) return;
   breatheTween = gsap.to(deckEl.value, {
     y: -8,
     duration: 2.1,
@@ -446,10 +550,27 @@ onUnmounted(() => {
   cardBreathTimelines.forEach((tl) => tl?.kill());
   cardBreathTimelines = [];
   ctaBreathTween?.kill();
+  if (sectionMoveRafId) {
+    window.cancelAnimationFrame(sectionMoveRafId);
+    sectionMoveRafId = 0;
+  }
+  if (portalImportTimer) {
+    window.clearTimeout(portalImportTimer);
+    portalImportTimer = 0;
+  }
 });
 function onCtaEnter() {
   if (!ctaButton.value) return;
   ctaBreathTween?.kill();
+  if (isSafariLike.value) {
+    gsap.to(ctaButton.value, {
+      y: -1,
+      duration: 0.2,
+      ease: "power3.out",
+      overwrite: "auto",
+    });
+    return;
+  }
   gsap.to(ctaButton.value, {
     boxShadow: "4px 4px 0px #4A3B32",
     duration: 0.2,
@@ -473,4 +594,7 @@ function onCtaMouseLeave() {
 </script>
 
 <style scoped>
+.portal-safari-lite .safari-simple-transition {
+  transition-property: transform, opacity, border-color, background-color;
+}
 </style>

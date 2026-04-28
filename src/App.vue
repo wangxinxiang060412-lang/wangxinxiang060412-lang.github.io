@@ -117,6 +117,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import CuratorStudioHost from "./components/CuratorStudioHost.vue";
 import { cancelIdleTask, scheduleIdleTask } from "./composables/useIdleTask";
 import { useIsLowEndDevice } from "./composables/useIsLowEndDevice";
+import { useIsSafari } from "./composables/useIsSafari";
 import { initLenis, destroyLenis, useLenis } from "./composables/useLenis";
 import { useCustomCursor } from "./composables/useCustomCursor";
 import { usePointerEffects } from "./composables/usePointerEffects";
@@ -142,6 +143,7 @@ const {
   setCursorMagneticTarget,
   clearCursorHover,
 } = useCustomCursor();
+const { isSafari, isIOS, isWebKit } = useIsSafari();
 const { prefersReducedMotion } = useReducedMotion();
 const { isLowEndDevice } = useIsLowEndDevice();
 const { supportsPointerEffects } = usePointerEffects();
@@ -426,6 +428,16 @@ watch(
 );
 
 watch(
+  [isSafari, isIOS, isWebKit],
+  ([safari, ios, webkit]) => {
+    document.documentElement.classList.toggle("is-safari", safari);
+    document.documentElement.classList.toggle("is-ios", ios);
+    document.documentElement.classList.toggle("is-webkit", webkit);
+  },
+  { immediate: true },
+);
+
+watch(
   isPerformanceLite,
   (lite) => {
     document.documentElement.classList.toggle("perf-lite", lite);
@@ -541,6 +553,7 @@ onUnmounted(() => {
   disposeEasterEggs = null;
   globalAmbientEl.value?.classList.remove("ambient-paused");
   document.documentElement.classList.remove("perf-lite");
+  document.documentElement.classList.remove("is-safari", "is-ios", "is-webkit");
   setCursorMagneticTarget(null);
   setCursorEnabled(false);
   destroyLenis();

@@ -1,6 +1,7 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ref } from "vue";
+import { getBrowserPlatformSnapshot } from "./useIsSafari";
 
 let lenis = null;
 let gsapTicker = null;
@@ -15,11 +16,15 @@ export async function initLenis() {
     .then(({ default: Lenis }) => {
       if (lenis) return lenis;
 
+      const { isSafariLike, isIOS } = getBrowserPlatformSnapshot();
+
       lenis = new Lenis({
-        duration: 1.2,
+        duration: isSafariLike ? 0.95 : 1.2,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         orientation: "vertical",
         smoothWheel: true,
+        wheelMultiplier: isSafariLike ? 0.92 : 1,
+        touchMultiplier: isIOS ? 0.95 : 1,
       });
 
       lenis.on("scroll", ScrollTrigger.update);

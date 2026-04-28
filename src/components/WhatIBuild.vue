@@ -98,7 +98,7 @@
             <router-link
               :to="
                 project.projectKey === 'lighttrip'
-                  ? '/lighttrip'
+                  ? '/work/lighttrip'
                   : project.projectKey === 'pixel-buddy'
                     ? '/pixel-buddy'
                     : '/'

@@ -137,6 +137,7 @@ const flippingMap = ref({})
 
 let tweenTop
 let tweenBottom
+let timeScaleProxies = []
 let motionQuery = null
 let removeMotionQueryListener = null
 let replaceTimer = 0
@@ -227,6 +228,9 @@ function scheduleReplacements() {
     const timer = window.setTimeout(() => {
       const { [k]: _removed, ...rest } = flippingMap.value
       flippingMap.value = rest
+      // 移除已完成的 timer，防止数组无限增长
+      const idx = flipCleanupTimers.indexOf(timer)
+      if (idx !== -1) flipCleanupTimers.splice(idx, 1)
     }, 420)
     flipCleanupTimers.push(timer)
   })
@@ -245,21 +249,33 @@ function clearFlipCleanupTimers() {
   flipCleanupTimers = []
 }
 
-function onEnter() {
-  gsap.to([tweenTop, tweenBottom].filter(Boolean), {
-    timeScale: 0.15,
-    duration: 0.7,
-    ease: 'power3.out',
+function tweenTimeScaleTo(target) {
+  // gsap.to([tweenA, tweenB], { timeScale }) treats tweens as plain
+  // objects and can fail to animate the getter/setter cleanly across
+  // versions. Animate via a stable proxy and apply with the official API.
+  ;[tweenTop, tweenBottom].filter(Boolean).forEach((tween, idx) => {
+    if (!timeScaleProxies[idx]) {
+      timeScaleProxies[idx] = { value: tween.timeScale() }
+    }
+    const proxy = timeScaleProxies[idx]
+    proxy.value = tween.timeScale()
+    gsap.to(proxy, {
+      value: target,
+      duration: 0.7,
+      ease: target < proxy.value ? 'power3.out' : 'power3.inOut',
+      overwrite: true,
+      onUpdate: () => tween.timeScale(proxy.value),
+    })
   })
+}
+
+function onEnter() {
+  tweenTimeScaleTo(0.15)
 }
 
 function onLeave() {
   onTokenLeave()
-  gsap.to([tweenTop, tweenBottom].filter(Boolean), {
-    timeScale: 1,
-    duration: 0.7,
-    ease: 'power3.inOut',
-  })
+  tweenTimeScaleTo(1)
 }
 
 onMounted(() => {
@@ -335,6 +351,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  timeScaleProxies.forEach((p) => p && gsap.killTweensOf(p))
+  timeScaleProxies = []
   tweenTop?.kill()
   tweenBottom?.kill()
   clearInterval(replaceTimer)

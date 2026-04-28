@@ -5,6 +5,7 @@
   >
     <div
       class="rounded-full border border-[#4A3B32]/12 bg-[#FDFCF8]/88 px-6 py-3 font-mono text-[10px] uppercase tracking-[0.32em] text-[#4A3B32]/72"
+      :class="isSafariLike ? 'safari-no-backdrop safari-light-shadow safari-webkit-layer' : ''"
       style="backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);"
     >
       Opening Curator Studio
@@ -41,6 +42,7 @@
 
 <script setup>
 import { onMounted, shallowRef } from "vue";
+import { useIsSafari } from "../composables/useIsSafari";
 import {
   getLoadedCuratorStudio,
   loadCuratorStudio,
@@ -49,12 +51,16 @@ import {
 
 const studioComponent = shallowRef(getLoadedCuratorStudio());
 const loadError = shallowRef(null);
+const { isSafariLike, isIOS } = useIsSafari();
 
 async function startLoading() {
   if (studioComponent.value) return;
 
   try {
-    studioComponent.value = await loadCuratorStudio();
+    studioComponent.value = await loadCuratorStudio({
+      deferToNextFrame: true,
+      delayMs: isIOS.value ? 120 : isSafariLike.value ? 90 : 0,
+    });
     loadError.value = null;
   } catch (error) {
     loadError.value = error;

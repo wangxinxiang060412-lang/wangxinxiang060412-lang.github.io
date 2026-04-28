@@ -96,6 +96,9 @@ const setState = (state) => {
   if (currentState.value === state) return;
   currentState.value = state;
   frameIndex.value = 0;
+  // Restart the loop so the new state's first frame plays for the full
+  // tick interval instead of being cut short by the previous schedule.
+  startAnimationLoop();
 };
 
 const bounceCat = () => {

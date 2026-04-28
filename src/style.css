@@ -157,3 +157,39 @@ input::placeholder, textarea::placeholder { color:rgba(255,255,255,0.22) }
     transition-duration: 0.01ms !important;
   }
 }
+
+html.is-webkit #global-ambient,
+html.is-webkit .paper-edge,
+html.is-webkit .safari-webkit-layer {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+html.is-safari #global-ambient .ambient-orb {
+  mix-blend-mode: normal !important;
+  opacity: 0.4 !important;
+  filter: blur(74px) !important;
+}
+
+html.is-safari .global-noise-overlay {
+  mix-blend-mode: normal !important;
+  opacity: 0.018 !important;
+}
+
+html.is-safari .safari-no-backdrop {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html.is-safari .safari-light-shadow {
+  box-shadow: 0 10px 24px rgba(74, 59, 50, 0.12) !important;
+}
+
+html.is-safari .safari-static-glow {
+  opacity: 0.68;
+  filter: none !important;
+}
+
+html.is-safari .safari-simple-transition {
+  transition-property: transform, opacity, border-color, background-color !important;
+}

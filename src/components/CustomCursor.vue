@@ -217,9 +217,15 @@ function mountTracking() {
     yTo(targetY);
   };
 
-  window.addEventListener("mousemove", onMove, { passive: true });
+  // pointermove handles mouse + pen + touch consistently and matches the
+  // tracking layer in App.vue, so cursor and magnet stay in sync.
+  const onPointerMove = (event) => {
+    if (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+    onMove(event);
+  };
+  window.addEventListener("pointermove", onPointerMove, { passive: true });
   removeMoveListener = () => {
-    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("pointermove", onPointerMove);
     removeMoveListener = null;
   };
 
